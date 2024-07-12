@@ -399,6 +399,11 @@ static const u32 aAB_PitcherHasCtrlofPitch = 0x80890B12; //Above addr is valid w
 static const u32 aAB_PitchBallPosZStrikezone  = 0x80890A14;
 static const u32 aAB_PitchStrikezoneEdgeLeft  = 0x80890A3C;
 static const u32 aAB_PitchStrikezoneEdgeRight = 0x80890A40;
+static const u32 aAB_PitchChargeUp         = 0x80890AA0;
+//static const u32 aAB_PitchTargerX         = 0x80890A54; Not needed since it's the same as pitcher pos
+static const u32 aAB_PitchReleaseX         = 0x80890A54;
+static const u32 aAB_PitchReleaseY         = 0x80890A58;
+static const u32 aAB_PitchReleaseZ         = 0x80890A5C;
 
 //At-Bat Hit
 static const u32 aAB_BallPower      = 0x808926D6;
@@ -647,6 +652,7 @@ public:
         u8 pitcher_char_id;
         u8 pitch_type;
         u8 charge_type;
+        TrackerAdr<u32> charge_up = TrackerAdr<u32>("Pitch Charge Up", aAB_PitchChargeUp, 0xFFFFFFFF);
         u8 star_pitch;
         u8 pitch_speed;
 
@@ -656,6 +662,11 @@ public:
         //Ball pos for pitch visualization
         u32 ball_z_strike_vs_ball;
         u8 ball_in_strikezone;
+
+        TrackerAdr<u32> pitch_target_x_pos = TrackerAdr<u32>("Ball Target Pos - X", aFielder_Pos_X, 0xFFFFFFFF);
+        TrackerAdr<u32> pitch_release_x_pos = TrackerAdr<u32>("Ball Release Pos - X", aAB_PitchReleaseX, 0xFFFFFFFF);
+        TrackerAdr<u32> pitch_release_y_pos = TrackerAdr<u32>("Ball Release Pos - Y", aAB_PitchReleaseY, 0xFFFFFFFF);
+        TrackerAdr<u32> pitch_release_z_pos = TrackerAdr<u32>("Ball Release Pos - Z", aAB_PitchReleaseZ, 0xFFFFFFFF);
 
         TrackerAdr<u32> bat_contact_x_pos = TrackerAdr<u32>("Bat Contact Pos - X", aAB_BatContactPos_X, 0xFFFFFFFF);
         TrackerAdr<u32> bat_contact_z_pos = TrackerAdr<u32>("Bat Contact Pos - Z", aAB_BatContactPos_Z, 0xFFFFFFFF);
