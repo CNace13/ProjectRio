@@ -645,6 +645,11 @@ public:
         std::optional<Fielder> collect_fielder;
     };
 
+    struct PitchCurve{
+        u32 curve_velocity;
+        //TODO add curve input. It's not it's own address, so will need to get creative.
+    };
+
     struct Pitch{
         //Pitcher Status
         bool logged = false;
@@ -687,6 +692,9 @@ public:
 
         //Info about the batter.
         u8 type_of_swing;
+
+        std::vector<PitchCurve> pitch_curve;
+
         std::optional<Contact> contact;
     };
 
@@ -1020,6 +1028,7 @@ public:
     void logEventState(const Core::CPUThreadGuard& guard, Event& in_event);
     void logContact(const Core::CPUThreadGuard& guard, Event& in_event);
     void logPitch(const Core::CPUThreadGuard& guard, Event& in_event);
+    void logPitchCurve(const Core::CPUThreadGuard& guard, Event& in_event);
     void logContactResult(const Core::CPUThreadGuard& guard, Contact* in_contact);
     void logFinalResults(const Core::CPUThreadGuard& guard, Event& in_event);
     //void logManualSelectLocks(Event& in_event);
