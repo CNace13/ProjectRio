@@ -172,7 +172,7 @@ void SaveScreenShot(std::string_view name);
 // This displays messages in a user-visible way.
 void DisplayMessage(std::string message, int time_in_ms);
 
-    void RunRioFunctions(const Core::CPUThreadGuard& guard);
+void RunRioFunctions(const Core::CPUThreadGuard& guard);
 void FrameUpdateOnCPUThread();
 void OnFrameEnd();
 bool IsGolfMode();

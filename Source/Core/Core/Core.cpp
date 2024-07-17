@@ -85,6 +85,7 @@
 
 #include "DiscIO/RiivolutionPatcher.h"
 #include "Core/MSB_StatTracker.h"
+#include "Core/MGTT_StatTracker.h"
 
 #include "InputCommon/ControlReference/ControlReference.h"
 #include "InputCommon/ControllerInterface/ControllerInterface.h"
@@ -145,6 +146,7 @@ static std::unique_ptr<MemoryWatcher> s_memory_watcher;
 #endif
 
 static std::unique_ptr<StatTracker> s_stat_tracker;
+static std::unique_ptr<MGTT_StatTracker> s_mgtt_stat_tracker;
 
 struct HostJob
 {
@@ -204,19 +206,17 @@ void FrameUpdateOnCPUThread()
       // Figure out if client is hosting via netplay settings. Could use local player as well
       //bool is_hosting = NetPlay::GetNetSettings().m_IsHosting;
       std::string opponent_name = "";
-      /*
-      for (auto player : NetPlay::NetPlayClient::GetPlayers()){
-        if (!NetPlay::NetPlayClient::IsLocalPlayer(player.pid)){
-          opponent_name = player.name;
-          break;
-        }
-      }*/
       s_stat_tracker->setNetplaySession(true, opponent_name);
     }
   }
   else if (s_stat_tracker && mGameBeingPlayed == GameName::MarioBaseball)
   {
     s_stat_tracker->setNetplaySession(false);
+  }
+  else if (s_mgtt_stat_tracker && mGameBeingPlayed == GameName::ToadstoolTour)
+  {
+    // TODO
+    // s_mgtt_stat_tracker->setNetplaySession(false);
   }
 }
 
@@ -256,6 +256,19 @@ void RunRioFunctions(const Core::CPUThreadGuard& guard)
     }
     SetAvgPing(guard);
     RunDraftTimer(guard);
+  }
+
+  if (mGameBeingPlayed == GameName::ToadstoolTour)
+  {
+    if (s_mgtt_stat_tracker && (Movie::GetCurrentFrame() > 300))
+    {
+      s_mgtt_stat_tracker->run(guard);
+    }
+
+    if (PowerPC::MMU::HostRead_U32(guard, aGameId) == 0)
+    {
+      runNetplayGameFunctions = true;
+    }
   }
 
   DisplayPlayerNames(guard);
@@ -891,6 +904,23 @@ bool Init(std::unique_ptr<BootParameters> boot, const WindowSystemInfo& wsi)
   else
     mGameBeingPlayed = mGameMap.at(game_id);
 
+  //Init tracker
+  if (mGameBeingPlayed == GameName::MarioBaseball){
+    if (!s_stat_tracker) {
+      s_stat_tracker = std::make_unique<StatTracker>();
+      s_stat_tracker->init();
+      std::cout << "Init stat tracker" << std::endl;
+    }
+  }
+  else if (mGameBeingPlayed == GameName::ToadstoolTour){
+    if (!s_mgtt_stat_tracker) {
+      // auto& system = Core::System::GetInstance();
+      // Core::CPUThreadGuard guard(system);
+      s_mgtt_stat_tracker = std::make_unique<MGTT_StatTracker>();
+      std::cout << "Init s_mgtt_stat_tracker" << std::endl;
+    }
+  }
+
   return true;
 }
 
@@ -1028,12 +1058,6 @@ static void CpuThread(const std::optional<std::string>& savestate_path, bool del
 #ifdef USE_MEMORYWATCHER
   s_memory_watcher = std::make_unique<MemoryWatcher>();
 #endif
-
-  if (!s_stat_tracker) {
-    s_stat_tracker = std::make_unique<StatTracker>();
-    s_stat_tracker->init();
-    std::cout << "Init stat tracker" << std::endl;
-  }
 
   if (savestate_path)
   {
@@ -1741,13 +1765,26 @@ CPUThreadGuard::~CPUThreadGuard()
 
 void SetGameID(u32 gameID)
 {
-  if (!s_stat_tracker)
-  {
-    s_stat_tracker = std::make_unique<StatTracker>();
-    s_stat_tracker->init();
-  }
+  if (mGameBeingPlayed == GameName::MarioBaseball) {
+    if (!s_stat_tracker)
+    {
+      s_stat_tracker = std::make_unique<StatTracker>();
+      s_stat_tracker->init();
+    }
 
-  s_stat_tracker->setGameID(gameID);
+    s_stat_tracker->setGameID(gameID);
+  }
+  if (mGameBeingPlayed == GameName::ToadstoolTour) {
+    if (!s_mgtt_stat_tracker)
+    {
+      // auto& system = Core::System::GetInstance();
+      // Core::CPUThreadGuard guard(system);
+      s_mgtt_stat_tracker = std::make_unique<MGTT_StatTracker>();
+    }
+
+    //TODO
+    // s_mgtt_stat_tracker->setGameID(gameID);
+  }
 }
 
 std::optional<TagSet> GetActiveTagSet(bool netplay)
@@ -1762,19 +1799,36 @@ void SetTagSet(std::optional<TagSet> tagset, bool netplay)
   else
     tagset_local = tagset;
 
-  if (!s_stat_tracker)
-  {
-    s_stat_tracker = std::make_unique<StatTracker>();
-    s_stat_tracker->init();
-  }
+  if (mGameBeingPlayed == GameName::MarioBaseball) {
+    if (!s_stat_tracker)
+    {
+      s_stat_tracker = std::make_unique<StatTracker>();
+      s_stat_tracker->init();
+    }
 
-  if (tagset.has_value())
-  {
-    s_stat_tracker->setTagSetId(std::move(tagset.value()), netplay);
+    if (tagset.has_value())
+    {
+      s_stat_tracker->setTagSetId(std::move(tagset.value()), netplay);
+    }
+    else
+    {
+      s_stat_tracker->clearTagSetId(netplay);
+    }
   }
-  else
-  {
-    s_stat_tracker->clearTagSetId(netplay);
+  if (mGameBeingPlayed == GameName::ToadstoolTour) {
+    if (!s_mgtt_stat_tracker)
+    {
+      s_mgtt_stat_tracker = std::make_unique<MGTT_StatTracker>();
+    }
+
+    // if (tagset.has_value())
+    // {
+    //   s_mgtt_stat_tracker->setTagSetId(std::move(tagset.value()), netplay);
+    // }
+    // else
+    // {
+    //   s_mgtt_stat_tracker->clearTagSetId(netplay);
+    // }
   }
 }
 

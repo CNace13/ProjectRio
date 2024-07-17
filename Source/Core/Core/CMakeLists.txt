@@ -437,10 +437,13 @@ add_library(core
   IOS/WFS/WFSSRV.cpp
   IOS/WFS/WFSSRV.h
   TrackerAdr.h
+  Pipeline.h
+  MemoryTracker.h
   LibusbUtils.cpp
   LibusbUtils.h
   MSB_StatTracker.cpp
   MSB_StatTracker.h
+  MGTT_StatTracker.h
   LocalPlayers.cpp
   LocalPlayers.h
   LocalPlayersConfig.cpp
