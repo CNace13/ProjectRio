@@ -9,13 +9,14 @@
 #include <functional>
 #include <iostream>
 #include "Core/Pipeline.h"
+#include "Core/RioUtil.h"
 
 // Define types
 using u8 = uint8_t;
 using u16 = uint16_t;
 using u32 = uint32_t;
 
-template<typename T, int N>
+template<typename T, int N, typename... StageCriteria>
 class MemoryTracker {
     static_assert(std::is_same<T, u8>::value || std::is_same<T, u16>::value || 
                   std::is_same<T, u32>::value || std::is_same<T, float>::value,
@@ -23,11 +24,13 @@ class MemoryTracker {
 
     u32 address;
     Pipeline<T, N> pipeline;
-    std::optional<std::map<uint32_t, T>> activeCriteria;
+    std::tuple<StageCriteria...> stage_criteria;
+
     // std::vector<std::function<void()>> downstreamCallback;
 
 public:
-    MemoryTracker(u32 addr, std::optional<std::map<u32, T>> criteria = std::nullopt) : address(addr), activeCriteria(criteria) {
+    MemoryTracker(u32 addr, StageCriteria... crit)
+        : address(addr), stage_criteria(std::make_tuple(crit...)) {
         reset();
     }
 
@@ -45,8 +48,11 @@ public:
         else if constexpr(std::is_same<T, u16>::value){
             mem_val = PowerPC::MMU::HostRead_U16(guard, address);
         }
-        else if constexpr(std::is_same<T, u32>::value || std::is_same<T, float>::value){
+        else if constexpr(std::is_same<T, u32>::value){
             mem_val = PowerPC::MMU::HostRead_U32(guard, address);
+        }
+        else if constexpr(std::is_same<T, float>::value){
+            mem_val = RioUtil::floatConverter(PowerPC::MMU::HostRead_U32(guard, address));
         }
         return mem_val;
     }
@@ -57,13 +63,6 @@ public:
 
         // Read new value into pipeline[0]
         pipeline.enqueue(read(guard));
-
-        // Check if the current state is active and trigger downstream if necessary
-        // if (isActive() && !downstreamCallback.empty()) {
-        //     for callback in downstreamCallback {
-        //         callback();
-        //     }
-        // }
     }
 
     // stage = 0 (now), stage = 1 (previous read)
@@ -73,12 +72,9 @@ public:
 
 
     std::optional<u8> getByteValue(std::size_t stage, std::size_t byte_index) const {
-        std::cout << "MemoryReader::getByteValue stage=" << stage << " byte_index=" << byte_index << std::endl;
-
         // Get the value from the specified stage
         auto value = getValue(stage);
         if (!value) {
-            std::cout << "MemoryReader::getByteValue - No value at specified stage" << std::endl;
             return std::nullopt;
         }
 
@@ -88,76 +84,85 @@ public:
         } else {
             // Ensure the byte index is within bounds
             if (byte_index >= sizeof(T)) {
-                std::cout << "MemoryReader::getByteValue - Byte index out of range" << std::endl;
                 std::cerr << "Byte index out of range for the type" << std::endl;
             }
 
             // Access the specific byte
             const u8* byte_ptr = reinterpret_cast<const u8*>(&(*value));
-            std::cout << "MemoryReader::getByteValue - Returning byte value " << static_cast<int>(byte_ptr[byte_index]) << std::endl;
             return byte_ptr[byte_index];
         }
     }
 
-    bool setActiveCriteria(const std::optional<std::map<uint32_t, T>>& criteria) {
-        // Validate criteria
-        for (const auto& [stage, value] : *criteria) {
-            if (stage < 0 || stage >= N) {
-                std::cerr << "Criteria contains bad value (out of range)" << std::endl;
-            }
+    template<typename Criterion>
+    bool checkCriterion(std::size_t stage, Criterion criterion) const {
+        auto value = getValue(stage);
+        if (!value) {
+            // std::cout << std::hex << address << " checkCriterion | stage: " << std::to_string(stage) << " Value: null" << "\n";
+            return false;
         }
-        activeCriteria = criteria;
-        return true;
+        // std::cout << std::hex << address << " checkCriterion | stage: " << std::to_string(stage) << " Value: " <<  std::to_string(*value) << "\n";
+        return criterion(*value);
+    }
+
+    template<std::size_t... Is>
+    bool isActiveImpl(std::index_sequence<Is...>) const {
+        return (checkCriterion(std::get<Is>(stage_criteria).first, std::get<Is>(stage_criteria).second) && ...);
+    }
+
+    // Overload for when there are no criteria
+    bool isActiveImpl(std::index_sequence<>) const {
+        return true; // Default behavior when no criteria are provided
     }
 
     bool isActive() const {
-        if (activeCriteria) {
-            for (const auto& [stage, value] : *activeCriteria) {
-                if (stage < 0 || stage >= N || !getValue(stage) || getValue(stage).value() != value) {
-                    return false;
-                }
-            }
-            return true;
-        }
-        return false;
+        return isActiveImpl(std::make_index_sequence<sizeof...(StageCriteria)>{});
     }
 
-    // void addDownstreamCallback(std::vector<std::function<void()>> callback) {
-    //     downstreamCallback.emplace(callback);
+    // void print(std::string name) {
+    //     std::cout << "\nMemoryTracker::print() " << name << std::hex << "(0x" << address << ")\n";
+    //     pipeline.print();
+    //     std::cout << "\n";
     // }
 };
 
-// Helper function to create MemoryTracker objects
-template<typename T, int Stages, std::size_t... Is>
-auto createMemoryTrackers(u32 base_address, u32 offset, const std::optional<std::map<u32, T>>& criteria, std::index_sequence<Is...>) {
-    return std::array<MemoryTracker<T, Stages>, sizeof...(Is)>{
-        MemoryTracker<T, Stages>(base_address + (Is * offset), criteria)...
+// Helper function to create an array of MemoryTrackers
+template<typename T, int Stages, typename... Criteria, std::size_t... Is>
+constexpr auto createMemoryTrackers(u32 base_address, u32 offset, std::index_sequence<Is...>, Criteria... crit) {
+    return std::array<MemoryTracker<T, Stages, Criteria...>, sizeof...(Is)>{
+        MemoryTracker<T, Stages, Criteria...>(base_address + (Is * offset), crit...)...
     };
 }
 
 // Wrapper class to manage an array of MemoryTracker objects
-template<typename T, int Stages, int Size>
+template<typename T, int Stages, int Size, typename... Criteria>
 class MemoryTrackerArray {
 public:
-    std::array<MemoryTracker<T, Stages>, Size> readers;
+    std::array<MemoryTracker<T, Stages, Criteria...>, Size> readers;
 
-    MemoryTrackerArray(u32 base_address, u32 offset, std::optional<std::map<u32, T>> criteria = std::nullopt)
-        : readers(createMemoryTrackers<T, Stages>(base_address, offset, criteria, std::make_index_sequence<Size>{})) {
-            print();
-        }
+    MemoryTrackerArray(u32 base_address, u32 offset, Criteria... crit)
+        : readers(createMemoryTrackers<T, Stages, Criteria...>(base_address, offset, std::make_index_sequence<Size>{}, crit...)) {
+        // print();
+    }
 
     // Provide direct access to the underlying array
-    MemoryTracker<T, Stages>& operator[](size_t index) {
+    MemoryTracker<T, Stages, Criteria...>& operator[](size_t index) {
         return readers[index];
     }
 
-    const MemoryTracker<T, Stages>& operator[](size_t index) const {
+    const MemoryTracker<T, Stages, Criteria...>& operator[](size_t index) const {
         return readers[index];
     }
 
-    void print() {
-        for (int i=0; i < Size; ++i) {
-            std::cout << "index=" << std::to_string(i) << " ReaderAddr=" << std::to_string(readers[i].get_address());
+    // Run method to call run on all MemoryTrackers
+    void run(const Core::CPUThreadGuard& guard) {
+        for (auto& reader : readers) {
+            reader.run(guard);
         }
     }
+
+    // void print() {
+    //     for (int i=0; i < Size; ++i) {
+    //         std::cout << "index=" << std::to_string(i) << " Addr=" << std::to_string(readers[i].get_address()) << "\n";
+    //     }
+    // }
 };

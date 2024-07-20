@@ -439,6 +439,8 @@ add_library(core
   TrackerAdr.h
   Pipeline.h
   MemoryTracker.h
+  RioUtil.cpp
+  RioUtil.h
   LibusbUtils.cpp
   LibusbUtils.h
   MSB_StatTracker.cpp
