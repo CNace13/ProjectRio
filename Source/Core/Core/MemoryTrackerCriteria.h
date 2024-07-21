@@ -1,3 +1,7 @@
+
+// ======================
+// Values
+// ======================
 template<typename T>
 struct Equals {
     T value;
@@ -45,7 +49,6 @@ struct Not {
 // ======================
 // Helper Functions
 // ======================
-
 template<typename T>
 constexpr auto eq(T value) {
     return Equals<T>{value};
@@ -79,4 +82,54 @@ constexpr auto or_(LHS lhs, RHS rhs) {
 template<typename Expr>
 constexpr auto not_(Expr expr) {
     return Not<Expr>{expr};
+}
+
+// ======================
+// Stages
+// ======================
+template<typename T>
+struct EqualsStage {
+    std::size_t stage;
+    constexpr bool operator()(T x, T y) const { return x == y; }
+};
+
+template<typename T>
+struct NotEqualsStage {
+    std::size_t stage;
+    constexpr bool operator()(T x, T y) const { return x != y; }
+};
+
+template<typename T>
+struct GreaterThanStage {
+    std::size_t stage;
+    constexpr bool operator()(T x, T y) const { return x > y; }
+};
+
+template<typename T>
+struct LessThanStage {
+    std::size_t stage;
+    constexpr bool operator()(T x, T y) const { return x < y; }
+};
+
+// ======================
+// Stages - Helper Functions
+// ======================
+template<typename T>
+constexpr auto eq_stage(std::size_t stage) {
+    return EqualsStage<T>{stage};
+}
+
+template<typename T>
+constexpr auto neq_stage(std::size_t stage) {
+    return NotEqualsStage<T>{stage};
+}
+
+template<typename T>
+constexpr auto gt_stage(std::size_t stage) {
+    return GreaterThanStage<T>{stage};
+}
+
+template<typename T>
+constexpr auto lt_stage(std::size_t stage) {
+    return LessThanStage<T>{stage};
 }

@@ -9,6 +9,8 @@ namespace RioUtil {
 
     // Function to convert u32 to float
     float floatConverter(u32 in_value);
+
+    u32 genRand32();
 }
 
 #endif // UTILS_H

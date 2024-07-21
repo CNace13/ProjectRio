@@ -16,7 +16,7 @@ using u8 = uint8_t;
 using u16 = uint16_t;
 using u32 = uint32_t;
 
-template<typename T, int N, typename... StageCriteria>
+template<typename T, u8 N, typename... StageCriteria>
 class MemoryTracker {
     static_assert(std::is_same<T, u8>::value || std::is_same<T, u16>::value || 
                   std::is_same<T, u32>::value || std::is_same<T, float>::value,
@@ -95,14 +95,22 @@ public:
 
     template<typename Criterion>
     bool checkCriterion(std::size_t stage, Criterion criterion) const {
-        auto value = getValue(stage);
-        if (!value) {
-            // std::cout << std::hex << address << " checkCriterion | stage: " << std::to_string(stage) << " Value: null" << "\n";
-            return false;
+        if constexpr (std::is_invocable_r_v<bool, Criterion, T, T>) {
+            auto value = getValue(stage);
+            auto compare_value = getValue(criterion.stage);
+            if (!value || !compare_value) {
+                return false;
+            }
+            return criterion(*value, *compare_value);
+        } else {
+            auto value = getValue(stage);
+            if (!value) {
+                return false;
+            }
+            return criterion(*value);
         }
-        // std::cout << std::hex << address << " checkCriterion | stage: " << std::to_string(stage) << " Value: " <<  std::to_string(*value) << "\n";
-        return criterion(*value);
     }
+
 
     template<std::size_t... Is>
     bool isActiveImpl(std::index_sequence<Is...>) const {
@@ -111,18 +119,12 @@ public:
 
     // Overload for when there are no criteria
     bool isActiveImpl(std::index_sequence<>) const {
-        return true; // Default behavior when no criteria are provided
+        return false; // Default behavior when no criteria are provided
     }
 
     bool isActive() const {
         return isActiveImpl(std::make_index_sequence<sizeof...(StageCriteria)>{});
     }
-
-    // void print(std::string name) {
-    //     std::cout << "\nMemoryTracker::print() " << name << std::hex << "(0x" << address << ")\n";
-    //     pipeline.print();
-    //     std::cout << "\n";
-    // }
 };
 
 // Helper function to create an array of MemoryTrackers
