@@ -68,7 +68,9 @@ MemoryTracker<u8, 1> rPlayerTurn(aPlayerTurn);
 // Round Addrs
 
 static const u32 aGameMode = 0x804E6753;
-MemoryTracker<u8, 16> rGameMode(aGameMode);
+//Only run tracker for game modes 0,1,2 (Stroke play, match play, skins)
+constexpr auto game_mode_criteria_0 = std::make_pair(0, or_(or_(eq(0), eq(1)), eq(2)));
+MemoryTracker<u8, 16, decltype(player_count_criteria_0)> rGameMode(aGameMode, game_mode_criteria_0);
 
 static const u32 aCourseId = 0x8044afdf;
 MemoryTracker<u8, 16> rCourseId(aCourseId);
@@ -118,14 +120,14 @@ MemoryTrackerArray<u32, 16, 4> rHandedness(aHandednessMenu_P1, 0x4);
 // MemoryTrackerArray<u8, 1, 4> rCharId(aCharId_P1, 0x5204);
 
 // Clubs - InGame
-static const u32 aWoods_P1 = 0x804E6664;
-MemoryTrackerArray<u8, 1, 4> rWoods(aWoods_P1, 0x4);
+static const u32 aWoodsMenu_P1 = 0x8017602C;
+MemoryTrackerArray<u8, 1, 4> rWoods(aWoodsMenu_P1, 0x4);
 
-static const u32 aIrons_P1 = 0x804E6665;
-MemoryTrackerArray<u8, 1, 4> rIrons(aIrons_P1, 0x4);
+static const u32 aIronsMenu_P1 = aIronsMenu_P1;
+MemoryTrackerArray<u8, 1, 4> rIrons(aIronsMenu_P1, 0x4);
 
-static const u32 aWedges_P1 = 0x804E6666;
-MemoryTrackerArray<u8, 1, 4> rWedges(aWedges_P1, 0x4);
+static const u32 aWedgesMenu_P1 = 0x8017602E;
+MemoryTrackerArray<u8, 1, 4> rWedges(aWedgesMenu_P1, 0x4);
 
 // Hole Addrs
 static const u32 aCurrentHole = 0x804E674B;
@@ -324,67 +326,61 @@ private:
     }
 
     void menuState(const Core::CPUThreadGuard& guard) {
-        rGameMode.run(guard);
-        rCourseId.run(guard);
-        rRoundFormat.run(guard);
-        rGreenType.run(guard);
-        rTees.run(guard);
-        rPlayerCount.run(guard);
-        rPlayerPorts.run(guard);
-        //Per player, Menu (Stage15)
-        rStarredAtMenu.run(guard);
-        rHandicapsEnabled.run(guard);
-        rSimulationLine.run(guard);
-        rMulligans.run(guard);
-        rHandicapTees.run(guard);
-
-        //Per Player, InGame (Stage0)
-        rCharId.run(guard);
-        rHandedness.run(guard);
-        rWoods.run(guard);
-        rIrons.run(guard);
-        rWedges.run(guard);
 
 
-        rCurrentHole.run(guard);
-        std::cout << "H " << std::to_string(*rCurrentHole.getValue()) << "-" << std::to_string(*rCurrentHole.getValue(1)) << " T\n";
+        if (!rPlayerCount.isActive()) { 
+            rGameMode.run(guard);
+            rCourseId.run(guard);
+            rRoundFormat.run(guard);
+            rGreenType.run(guard);
+            rTees.run(guard);
+            rPlayerCount.run(guard);
+            rPlayerPorts.run(guard);
+            //Per player, Menu (Stage15)
+            rStarredAtMenu.run(guard);
+            rHandicapsEnabled.run(guard);
+            rSimulationLine.run(guard);
+            rMulligans.run(guard);
+            rHandicapTees.run(guard);
 
-        if (rCurrentHole.isActive()) { 
-            std::cout << "rCurrentHole is active\n";
-        }
+            //Per Player, InGame (Stage0)
+            rCharId.run(guard);
+            rHandedness.run(guard);
+            rWoods.run(guard);
+            rIrons.run(guard);
+            rWedges.run(guard);
 
-        if (rPlayerCount.isActive()) { 
-            std::cout << "RoundInfo | GameMode=" <<  std::to_string(*rGameMode.getValue(14)) << "\n"; 
-            std::cout << "RoundInfo | CourseID=" <<  std::to_string(*rCourseId.getValue(14)) << "\n"; 
-            std::cout << "RoundInfo | RoundFormat=" << std::to_string(*rRoundFormat.getValue(14)) << "\n";
-            std::cout << "RoundInfo | GreenType=" << std::to_string(*rGreenType.getValue(14)) << "\n";
-            std::cout << "RoundInfo | Tees=" << std::to_string(*rTees.getValue(14)) << "\n";
-            std::cout << "RoundInfo | PlayerCount=" << std::to_string(*rPlayerCount.getValue()) << "\n";
+            if (rPlayerCount.isActive() && rGameMode.isActive()) { 
+                std::cout << "RoundInfo | GameID=" <<  std::to_string(RioUtil::genRand32()) << "\n";
+                std::cout << "RoundInfo | GameMode=" <<  std::to_string(*rGameMode.getValue(14)) << "\n";
+                std::cout << "RoundInfo | CourseID=" <<  std::to_string(*rCourseId.getValue(14)) << "\n";
+                std::cout << "RoundInfo | RoundFormat=" << std::to_string(*rRoundFormat.getValue(14)) << "\n";
+                std::cout << "RoundInfo | GreenType=" << std::to_string(*rGreenType.getValue(14)) << "\n";
+                std::cout << "RoundInfo | Tees=" << std::to_string(*rTees.getValue(14)) << "\n";
+                std::cout << "RoundInfo | PlayerCount=" << std::to_string(*rPlayerCount.getValue()) << "\n";
 
+                for (int i=0; i < *rPlayerCount.getValue(); ++i){
+                    auto player_port = rPlayerPorts.getByteValue(0, i);
+                    std::cout << "P" << std::to_string(i) << " Port=" << std::to_string(*player_port) << "\n";
 
-            for (int i=0; i < *rPlayerCount.getValue(); ++i){
-                auto player_port = rPlayerPorts.getByteValue(0, i);
-                std::cout << "P" << std::to_string(i) << " Port=" << std::to_string(*player_port) << "\n";
-
-                std::cout << "RoundInfo (TODO) | HandicapsEnabled=" << std::to_string(*rHandicapsEnabled[i].getValue(14)) << "\n";
-                std::cout << "RoundInfo (TODO) | SimulationLine=" << std::to_string(*rSimulationLine[i].getValue(14)) << "\n";
-                std::cout << "RoundInfo (TODO) | Mulligans=" << std::to_string(*rMulligans[i].getValue(14)) << "\n";
-                std::cout << "RoundInfo (TODO) | HandicapTees=" << std::to_string(*rHandicapTees[i].getValue(14)) << "\n";
-                std::cout << "RoundInfo (TODO) | CharId=" << std::to_string(*rCharId[i].getValue(14)) << "\n";
-                std::cout << "RoundInfo (TODO) | Starred=" << std::to_string(*rStarredAtMenu[i].getValue(14)) << "\n";
-                std::cout << "RoundInfo (TODO) | Handedness=" << std::to_string(*rHandedness[i].getValue(14)) << "\n";
-                std::cout << "RoundInfo (TODO) | Woods=" << std::to_string(*rWoods[i].getValue()) << "\n";
-                std::cout << "RoundInfo (TODO) | Irons=" << std::to_string(*rIrons[i].getValue()) << "\n";
-                std::cout << "RoundInfo (TODO) | Wedges=" << std::to_string(*rWedges[i].getValue()) << "\n";
-                
-                //Get Rio Name
+                    std::cout << "RoundInfo (TODO) | HandicapsEnabled=" << std::to_string(*rHandicapsEnabled[i].getValue(14)) << "\n";
+                    std::cout << "RoundInfo (TODO) | SimulationLine=" << std::to_string(*rSimulationLine[i].getValue(14)) << "\n";
+                    std::cout << "RoundInfo (TODO) | Mulligans=" << std::to_string(*rMulligans[i].getValue(14)) << "\n";
+                    std::cout << "RoundInfo (TODO) | HandicapTees=" << std::to_string(*rHandicapTees[i].getValue(14)) << "\n";
+                    std::cout << "RoundInfo (TODO) | CharId=" << std::to_string(*rCharId[i].getValue(14)) << "\n";
+                    std::cout << "RoundInfo (TODO) | Starred=" << std::to_string(*rStarredAtMenu[i].getValue(14)) << "\n";
+                    std::cout << "RoundInfo (TODO) | Handedness=" << std::to_string(*rHandedness[i].getValue(14)) << "\n";
+                    std::cout << "RoundInfo (TODO) | Woods=" << std::to_string(*rWoods[i].getValue()) << "\n";
+                    std::cout << "RoundInfo (TODO) | Irons=" << std::to_string(*rIrons[i].getValue()) << "\n";
+                    std::cout << "RoundInfo (TODO) | Wedges=" << std::to_string(*rWedges[i].getValue()) << "\n";
+                    
+                    //Get Rio Name
+                }
             }
         }
 
         rIsGolfRound.run(guard);
-        if (rIsGolfRound.isActive()) {
-            transitionTo(MGTT_State::TRANSITION);
-
+        if (rIsGolfRound.isActive() && rGameMode.isActive()) {
             rCurrentHole.run(guard);
             rWindRads.run(guard);
             rWindSpeed.run(guard);
@@ -397,8 +393,31 @@ private:
             std::cout << "  HoleInfo | RainBool=" << std::to_string(*rRainBool.getValue()) << "\n";
             std::cout << "  HoleInfo | Pin=" << std::to_string(*rPin.getValue()) << "\n";
             std::cout << "  HoleInfo | Pin2=" << std::to_string(*rPin2.getValue()) << "\n";
+            
+            transitionTo(MGTT_State::TRANSITION);
         }
     }
+
+    // void waitingForRoundStartState(const Core::CPUThreadGuard& guard) {
+
+    //     rIsGolfRound.run(guard);
+    //     if (rIsGolfRound.isActive()) {
+    //         transitionTo(MGTT_State::TRANSITION);
+
+    //         rCurrentHole.run(guard);
+    //         rWindRads.run(guard);
+    //         rWindSpeed.run(guard);
+    //         rRainBool.run(guard);
+    //         rPin.run(guard);
+    //         rPin2.run(guard);
+    //         std::cout << "  HoleInfo | CurrentHole=" << std::to_string(*rCurrentHole.getValue()) << "\n";
+    //         std::cout << "  HoleInfo | WindRads=" << std::to_string(*rWindRads.getValue()) << "\n";
+    //         std::cout << "  HoleInfo | WindSpeed=" << std::to_string(*rWindSpeed.getValue()) << "\n";
+    //         std::cout << "  HoleInfo | RainBool=" << std::to_string(*rRainBool.getValue()) << "\n";
+    //         std::cout << "  HoleInfo | Pin=" << std::to_string(*rPin.getValue()) << "\n";
+    //         std::cout << "  HoleInfo | Pin2=" << std::to_string(*rPin2.getValue()) << "\n";
+    //     }
+    // }
 
     void transitionState(const Core::CPUThreadGuard& guard) {
         // Transition logic for ROUND_INFO MGTT_State
