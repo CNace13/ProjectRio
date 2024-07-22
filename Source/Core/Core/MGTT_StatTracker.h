@@ -249,6 +249,16 @@ MemoryTracker<u32, 1> rLieRng(aLieRng);
 static const u32 aLieRngSeed = 0x804ecd3c;
 MemoryTracker<u32, 1> rLieRngSeed(aLieRngSeed);
 
+//Final Score Addrs
+static const u32 aFinalScoreHoleTotal = 0x806CB348;
+MemoryTrackerArray<u8, 1, 4> rFinalScoreHoleTotal(aFinalScoreHoleTotal, 0x1C8);
+
+static const u32 aFinalScoreHolePutts = 0x806CB349;
+MemoryTrackerArray<u8, 1, 4> rFinalScoreHolePutts(aFinalScoreHolePutts, 0x1C8);
+
+static const u32 aFinalScoreHoleStrokes = 0x806CB350;
+MemoryTrackerArray<u8, 1, 4> rFinalScoreHoleStrokes(aFinalScoreHoleStrokes, 0x1C8);
+
 // Type definition for MGTT_State transition functions
 using StateFunction = std::function<void(const Core::CPUThreadGuard&)>;
 
@@ -259,11 +269,10 @@ public:
         // MGTT_StatTracker MGTT_State functions map
         stateFunctions[MGTT_State::INIT] = [this](const Core::CPUThreadGuard& guard) { this->initState(guard); };
         stateFunctions[MGTT_State::MENU] = [this](const Core::CPUThreadGuard& guard) { this->menuState(guard); };
-        // stateFunctions[MGTT_State::ROUND_INFO] = [this](const Core::CPUThreadGuard& guard) { this->roundInfoState(guard); };
         stateFunctions[MGTT_State::TRANSITION] = [this](const Core::CPUThreadGuard& guard) { this->transitionState(guard); };
         stateFunctions[MGTT_State::PRESWING] = [this](const Core::CPUThreadGuard& guard) { this->preswingState(guard); };
         stateFunctions[MGTT_State::POSTSWING] = [this](const Core::CPUThreadGuard& guard) { this->postswingState(guard); };
-        // stateFunctions[MGTT_State::BALL_IN_MOTION] = [this](const Core::CPUThreadGuard& guard) { this->ballInMotionState(guard); };
+        stateFunctions[MGTT_State::ROUND_OVER] = [this](const Core::CPUThreadGuard& guard) { this->roundOverState(guard); };
         std::cout << "Init MGTT_StatTracker" << std::endl;
     }
 
@@ -292,6 +301,40 @@ public:
         }
     }
 
+    // RioFunctions
+    void setNetplaySession(bool netplay_session, std::string opponent_name){
+        rioInfo.netplay = netplay_session;
+    }
+
+    void setNetplayerUserInfo(std::map<int, LocalPlayers::LocalPlayers::Player> userInfo){
+        rioInfo.rioUsers = userInfo;
+        // rioInfo.netplay = true;
+    }
+    void setTagSet(Tag::TagSet tag_set, bool netplay) {
+        rioInfo.tag_set_id_name = std::make_pair(tag_set.id, tag_set.name);
+    }
+    void clearTagSet(bool netplay) {
+        rioInfo.tag_set_id_name = std::nullopt;
+    }
+    void readLocalPlayers(int num_players){ //TODO - Assumes all human players, each with own port
+        for (int i=1; i<num_players+1; ++i){
+            switch (i)
+            {
+            case 0:
+                rioInfo.rioUsers[i] = LocalPlayers::m_local_player_1;
+            case 1:
+                rioInfo.rioUsers[i] = LocalPlayers::m_local_player_2;
+            case 2:
+                rioInfo.rioUsers[i] = LocalPlayers::m_local_player_3;
+            case 3:
+                rioInfo.rioUsers[i] = LocalPlayers::m_local_player_3;
+            
+            default:
+                break;
+            }
+        }
+    }
+
     // Method to convert MGTT_State to string
     std::string stateToString(MGTT_State state) const {
         switch (state) {
@@ -316,7 +359,7 @@ private:
         std::map<int, LocalPlayers::LocalPlayers::Player> rioUsers;
         std::optional<std::pair<int, std::string>> tag_set_id_name;
         bool netplay;
-    } rio_info;
+    } rioInfo;
 
     // MGTT_State methods
     void initState(const Core::CPUThreadGuard& guard) {
@@ -350,6 +393,8 @@ private:
 
             if (rPlayerCount.isActive() && rGameMode.isActive()) { 
                 std::cout << "RoundInfo | GameID=" <<  std::to_string(RioUtil::genRand32()) << "\n";
+                std::cout << "RoundInfo | TagSetID=" << (rioInfo.tag_set_id_name.has_value() ? std::to_string((*rioInfo.tag_set_id_name).first) : "null") << "\n";
+                std::cout << "RoundInfo | TagSet=" << (rioInfo.tag_set_id_name.has_value() ? (*rioInfo.tag_set_id_name).second : "null") << "\n";
                 std::cout << "RoundInfo | GameMode=" <<  std::to_string(*rGameMode.getValue(14)) << "\n";
                 std::cout << "RoundInfo | CourseID=" <<  std::to_string(*rCourseId.getValue(14)) << "\n";
                 std::cout << "RoundInfo | RoundFormat=" << std::to_string(*rRoundFormat.getValue(14)) << "\n";
@@ -357,22 +402,32 @@ private:
                 std::cout << "RoundInfo | Tees=" << std::to_string(*rTees.getValue(14)) << "\n";
                 std::cout << "RoundInfo | PlayerCount=" << std::to_string(*rPlayerCount.getValue()) << "\n";
 
+                // Get User info
+                if (!rioInfo.netplay) {
+                    readLocalPlayers(*rPlayerCount.getValue());
+                }
+
+                // Process users
                 for (int i=0; i < *rPlayerCount.getValue(); ++i){
                     auto player_port = rPlayerPorts.getByteValue(0, i);
                     std::cout << "P" << std::to_string(i) << " Port=" << std::to_string(*player_port) << "\n";
 
-                    std::cout << "RoundInfo (TODO) | HandicapsEnabled=" << std::to_string(*rHandicapsEnabled[i].getValue(14)) << "\n";
-                    std::cout << "RoundInfo (TODO) | SimulationLine=" << std::to_string(*rSimulationLine[i].getValue(14)) << "\n";
-                    std::cout << "RoundInfo (TODO) | Mulligans=" << std::to_string(*rMulligans[i].getValue(14)) << "\n";
-                    std::cout << "RoundInfo (TODO) | HandicapTees=" << std::to_string(*rHandicapTees[i].getValue(14)) << "\n";
-                    std::cout << "RoundInfo (TODO) | CharId=" << std::to_string(*rCharId[i].getValue(14)) << "\n";
-                    std::cout << "RoundInfo (TODO) | Starred=" << std::to_string(*rStarredAtMenu[i].getValue(14)) << "\n";
-                    std::cout << "RoundInfo (TODO) | Handedness=" << std::to_string(*rHandedness[i].getValue(14)) << "\n";
-                    std::cout << "RoundInfo (TODO) | Woods=" << std::to_string(*rWoods[i].getValue()) << "\n";
-                    std::cout << "RoundInfo (TODO) | Irons=" << std::to_string(*rIrons[i].getValue()) << "\n";
-                    std::cout << "RoundInfo (TODO) | Wedges=" << std::to_string(*rWedges[i].getValue()) << "\n";
-                    
                     //Get Rio Name
+                    std::cout << "RoundInfo | Player=" << std::to_string(i) << "\n";
+                    std::cout << "RoundInfo | Port=" << std::to_string(*player_port) << "\n";
+                    std::cout << "RoundInfo | RioUsername=" << rioInfo.rioUsers[*player_port].GetUsername() << "\n";
+
+                    std::cout << "RoundInfo | HandicapsEnabled=" << std::to_string(*rHandicapsEnabled[i].getValue(14)) << "\n";
+                    std::cout << "RoundInfo | SimulationLine=" << std::to_string(*rSimulationLine[i].getValue(14)) << "\n";
+                    std::cout << "RoundInfo | Mulligans=" << std::to_string(*rMulligans[i].getValue(14)) << "\n";
+                    std::cout << "RoundInfo | HandicapTees=" << std::to_string(*rHandicapTees[i].getValue(14)) << "\n";
+                    std::cout << "RoundInfo | CharId=" << std::to_string(*rCharId[i].getValue(14)) << "\n";
+                    std::cout << "RoundInfo | Starred=" << std::to_string(*rStarredAtMenu[i].getValue(14)) << "\n";
+                    std::cout << "RoundInfo | Handedness=" << std::to_string(*rHandedness[i].getValue(14)) << "\n";
+                    std::cout << "RoundInfo | Woods=" << std::to_string(*rWoods[i].getValue()) << "\n";
+                    std::cout << "RoundInfo | Irons=" << std::to_string(*rIrons[i].getValue()) << "\n";
+                    std::cout << "RoundInfo | Wedges=" << std::to_string(*rWedges[i].getValue()) << "\n";
+                    
                 }
             }
         }
@@ -490,7 +545,7 @@ private:
                 rSpin.run(guard);
                 
                 std::cout << "  ShotInfo | ShotInfo=" << std::to_string(*rShotType.getValue()) << "\n";
-                std::cout << "  ShotInfo | ClubType" << std::to_string(*rClubType.getValue()) << "\n";
+                std::cout << "  ShotInfo | ClubType=" << std::to_string(*rClubType.getValue()) << "\n";
                 std::cout << "  ShotInfo | PowerMeterSetting=" << std::to_string(*rPowerMeterSetting.getValue()) << "\n";
                 std::cout << "  ShotInfo | PowerMeterSettingCopy=" << std::to_string(*rPowerMeterSettingCopy.getValue()) << "\n";
                 std::cout << "  ShotInfo | PowerMeterMaximum=" << std::to_string(*rPowerMeterMaximum.getValue()) << "\n";
@@ -508,6 +563,13 @@ private:
 
                 transitionTo(MGTT_State::POSTSWING);
             }
+        }
+
+
+        // Check if game is over
+        rIsGolfRound.run(guard);
+        if (*rIsGolfRound.getValue() == 0) {
+            transitionTo(MGTT_State::ROUND_OVER);
         }
     }
 
@@ -549,6 +611,20 @@ private:
         }
     }
 
+
+    void roundOverState(const Core::CPUThreadGuard& guard) {
+        rFinalScoreHoleTotal.run(guard);
+        rFinalScoreHolePutts.run(guard);
+        rFinalScoreHoleStrokes.run(guard);
+
+        // if (!rPlayerCount.isActive()) {
+        //     std::cerr << "ERROR: RoundOverState has incorrect PlayerCount\n";
+        // }
+        // for (int i=0; i<*rPlayerCount.getValue(); ++i) {
+        // }
+
+    }
+
     /*
     void ballInMotionState(const Core::CPUThreadGuard& guard) {
         // Transition logic for PRESWING MGTT_State
@@ -577,38 +653,6 @@ private:
     }
     */
 
-    // RioFunctions
-    void setNetplaySession(bool netplay_session, std::string opponent_name){
-        rio_info.netplay = netplay_session;
-    }
-
-    void setNetplayerUserInfo(std::map<int, LocalPlayers::LocalPlayers::Player> userInfo){
-        rio_info.rioUsers = userInfo;
-    }
-    void setTagSetId(Tag::TagSet tag_set, bool netplay) {
-        rio_info.tag_set_id_name = std::make_pair(tag_set.id, tag_set.name);
-    }
-    void clearTagSetId(bool netplay) {
-        rio_info.tag_set_id_name = std::nullopt;
-    }
-    void readLocalPlayers(int num_players){ //TODO - Assumes all human players, each with own port
-        for (int i=0; i<num_players; ++i){
-            switch (i)
-            {
-            case 0:
-                rio_info.rioUsers[i] = LocalPlayers::m_local_player_1;
-            case 1:
-                rio_info.rioUsers[i] = LocalPlayers::m_local_player_2;
-            case 2:
-                rio_info.rioUsers[i] = LocalPlayers::m_local_player_3;
-            case 3:
-                rio_info.rioUsers[i] = LocalPlayers::m_local_player_3;
-            
-            default:
-                break;
-            }
-        }
-    }
 };
 
 /*

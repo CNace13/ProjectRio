@@ -198,8 +198,12 @@ void FrameUpdateOnCPUThread()
 {
   if (NetPlay::IsNetPlayRunning() && Core::IsRunningAndStarted())
   {
-    if (mGameBeingPlayed != GameName::MarioBaseball)
+    if (mGameBeingPlayed != GameName::MarioBaseball) {
       NetPlay::NetPlayClient::SendTimeBase();
+      if (s_mgtt_stat_tracker){
+        s_stat_tracker->setNetplaySession(true, "");
+      }
+    }
 
     else if (s_stat_tracker)
     {
@@ -216,7 +220,7 @@ void FrameUpdateOnCPUThread()
   else if (s_mgtt_stat_tracker && mGameBeingPlayed == GameName::ToadstoolTour)
   {
     // TODO
-    // s_mgtt_stat_tracker->setNetplaySession(false);
+    s_mgtt_stat_tracker->setNetplaySession(false, "");
   }
 }
 
@@ -792,15 +796,31 @@ void SetAvgPing(const Core::CPUThreadGuard& guard)
 
 void SetNetplayerUserInfo()
 {
-  // tell the stat tracker who the players are
-  if (s_stat_tracker)
+  switch (mGameBeingPlayed)
   {
-    s_stat_tracker->setNetplayerUserInfo(NetPlay::NetPlayClient::getNetplayerUserInfo());
-  }
-  else {
-    s_stat_tracker = std::make_unique<StatTracker>();
-    s_stat_tracker->init();
-    s_stat_tracker->setNetplayerUserInfo(NetPlay::NetPlayClient::getNetplayerUserInfo());
+  case GameName::MarioBaseball:
+    // tell the stat tracker who the players are
+    if (s_stat_tracker)
+    {
+      s_stat_tracker->setNetplayerUserInfo(NetPlay::NetPlayClient::getNetplayerUserInfo());
+    }
+    else {
+      s_stat_tracker = std::make_unique<StatTracker>();
+      s_stat_tracker->init();
+      s_stat_tracker->setNetplayerUserInfo(NetPlay::NetPlayClient::getNetplayerUserInfo());
+    }
+  case GameName::ToadstoolTour:
+    // tell the stat tracker who the players are
+    if (s_mgtt_stat_tracker)
+    {
+      s_mgtt_stat_tracker->setNetplayerUserInfo(NetPlay::NetPlayClient::getNetplayerUserInfo());
+    }
+    else {
+      s_mgtt_stat_tracker = std::make_unique<MGTT_StatTracker>();
+      s_mgtt_stat_tracker->setNetplayerUserInfo(NetPlay::NetPlayClient::getNetplayerUserInfo());
+    }
+  default:
+    break;
   }
 }
 
@@ -1821,14 +1841,14 @@ void SetTagSet(std::optional<TagSet> tagset, bool netplay)
       s_mgtt_stat_tracker = std::make_unique<MGTT_StatTracker>();
     }
 
-    // if (tagset.has_value())
-    // {
-    //   s_mgtt_stat_tracker->setTagSetId(std::move(tagset.value()), netplay);
-    // }
-    // else
-    // {
-    //   s_mgtt_stat_tracker->clearTagSetId(netplay);
-    // }
+    if (tagset.has_value())
+    {
+      s_mgtt_stat_tracker->setTagSet(std::move(tagset.value()), netplay);
+    }
+    else
+    {
+      s_mgtt_stat_tracker->clearTagSet(netplay);
+    }
   }
 }
 
