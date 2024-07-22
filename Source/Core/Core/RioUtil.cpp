@@ -18,7 +18,7 @@ namespace RioUtil {
     }
 
 
-    u32 generateRandomU32() {
+    u32 genRand32() {
         // Create a random device to seed the random number generator
         std::random_device rd;
 

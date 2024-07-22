@@ -70,7 +70,7 @@ MemoryTracker<u8, 1> rPlayerTurn(aPlayerTurn);
 static const u32 aGameMode = 0x804E6753;
 //Only run tracker for game modes 0,1,2 (Stroke play, match play, skins)
 constexpr auto game_mode_criteria_0 = std::make_pair(0, or_(or_(eq(0), eq(1)), eq(2)));
-MemoryTracker<u8, 16, decltype(player_count_criteria_0)> rGameMode(aGameMode, game_mode_criteria_0);
+MemoryTracker<u8, 16, decltype(game_mode_criteria_0)> rGameMode(aGameMode, game_mode_criteria_0);
 
 static const u32 aCourseId = 0x8044afdf;
 MemoryTracker<u8, 16> rCourseId(aCourseId);
@@ -326,8 +326,6 @@ private:
     }
 
     void menuState(const Core::CPUThreadGuard& guard) {
-
-
         if (!rPlayerCount.isActive()) { 
             rGameMode.run(guard);
             rCourseId.run(guard);

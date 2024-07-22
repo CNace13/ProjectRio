@@ -399,9 +399,10 @@
     <ClInclude Include="Core\LocalPlayersConfig.h" />
     <ClInclude Include="Core\MachineContext.h" />
     <ClInclude Include="Core\MemTools.h" />
-    <ClInclude Include="Core\MemoryTracker.h" />
-    <ClInclude Include="Core\MemoryTrackerCriteria.h" />
+    <ClInclude Include="Core\Pipeline.h" />
     <ClInclude Include="Core\RioUtil.h" />
+    <ClInclude Include="Core\MemoryTrackerCriteria.h" />
+    <ClInclude Include="Core\MemoryTracker.h" />
     <ClInclude Include="Core\Movie.h" />
     <ClInclude Include="Core\MSB_StatTracker.h" />
     <ClInclude Include="Core\MGTT_StatTracker.h" />
@@ -1044,7 +1045,6 @@
     <ClCompile Include="Core\RioUtil.cpp" />
     <ClCompile Include="Core\Movie.cpp" />
     <ClCompile Include="Core\MSB_StatTracker.cpp" />
-    <ClCompile Include="Core\MGTT_StatTracker.h" />
     <ClCompile Include="Core\NetPlayClient.cpp" />
     <ClCompile Include="Core\NetPlayCommon.cpp" />
     <ClCompile Include="Core\NetPlayServer.cpp" />
