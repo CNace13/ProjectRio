@@ -60,6 +60,7 @@
 #define GAMESETTINGS_DIR "GameSettings"
 #define STATFILES_DIR "StatFiles"
 #define MSSBFILES_DIR "MarioSuperstarBaseball"
+#define MGTTFILES_DIR "MarioGolfToadstoolTour"
 #define HUDFILES_DIR "HudFiles"
 #define STATELOGGERFILES_DIR "StateLoggerFiles"
 #define MAPS_DIR "Maps"

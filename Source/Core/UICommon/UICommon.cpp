@@ -268,6 +268,7 @@ void CreateDirectories()
   File::CreateFullPath(File::GetUserPath(D_STATESAVES_IDX));
   File::CreateFullPath(File::GetUserPath(D_STATFILES_IDX));
   File::CreateFullPath(File::GetUserPath(D_MSSBFILES_IDX));
+  File::CreateFullPath(File::GetUserPath(D_MGTTFILES_IDX));
   File::CreateFullPath(File::GetUserPath(D_HUDFILES_IDX));
   File::CreateFullPath(File::GetUserPath(D_STATELOGGER_IDX));
 #ifndef ANDROID

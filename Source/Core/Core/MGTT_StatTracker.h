@@ -24,7 +24,7 @@
 #include "Core/MemoryTracker.h"
 #include "Core/MemoryTrackerCriteria.h"
 #include "Common/TagSet.h"
-#include "Core/RioJsonUtil.h"
+#include "Core/JsonWriter.h"
 
 #include <iostream>
 #include <functional>
@@ -367,7 +367,8 @@ private:
     std::unique_ptr<JSONWriter> writer;
 
     void initializeWriter(std::string filename) {
-        std::string outputFilename = fmt::format("{}.json", filename);
+        std::string outputFilename = fmt::format("{}{}.json", File::GetUserPath(D_MSSBFILES_IDX), filename);
+        std::cout << "JSON File Loc=" << outputFilename << "\n";
         writer = std::make_unique<JSONWriter>(outputFilename);
     }
 
