@@ -386,7 +386,7 @@ private:
     }
 
     void menuState(const Core::CPUThreadGuard& guard) {
-        if (!rPlayerCount.isActive()) { 
+        if (!rPlayerCount.isActive()) {
             rGameMode.run(guard);
             rCourseId.run(guard);
             rRoundFormat.run(guard);
@@ -725,7 +725,7 @@ private:
         // Reset the writer
         writer.reset();
 
-        transitionTo(MGTT_State::MENU);
+        transitionTo(MGTT_State::UNDEFINED);
         
         //TODO write these to file as well
         rFinalScoreHoleTotal.run(guard);
