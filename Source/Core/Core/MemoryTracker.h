@@ -1,5 +1,6 @@
 #include <iostream>
 #include <vector>
+#include <vector>
 #include <cstdint>
 #include <cstring>
 #include <stdexcept>
@@ -167,4 +168,128 @@ public:
     //         std::cout << "index=" << std::to_string(i) << " Addr=" << std::to_string(readers[i].get_address()) << "\n";
     //     }
     // }
+};
+
+#include <vector>
+
+//Sadly, I was not able to figure out how to implement this class so that it could be constucted
+//at compile time, so I am using vectors to hold all the run time info (though I could probably use arrays to be safer)
+//The orginal Array class can handle simple arrays at compile time, but for N-D arrays this class must be used
+template<typename T, uint8_t Stages, typename... Criteria>
+class MemoryTrackerNestedArray {
+private:
+    uint32_t base_address;
+    std::vector<uint32_t> sizes;
+    std::vector<uint32_t> offsets;
+    std::vector<MemoryTracker<T, Stages, Criteria...>> trackers;
+
+    uint32_t calculateAddress(const std::vector<uint32_t>& indices) const {
+        uint32_t address = base_address;
+        std::cout << "Calculating address for indices: ";
+        for (auto idx : indices) std::cout << idx << " ";
+        std::cout << std::endl;
+
+        for (size_t i = 0; i < indices.size(); ++i) {
+            uint32_t offset = offsets[i] * indices[i];
+            address += offset;
+            std::cout << "  Dimension " << i << ": offset = " << std::hex << offsets[i] 
+                      << " * " << std::dec << indices[i] << " = " << std::hex << offset << std::endl;
+        }
+        std::cout << "  Final address: 0x" << std::hex << address << std::dec << std::endl;
+        return address;
+    }
+
+    uint32_t calculateTotalSize() const {
+        uint32_t total = 1;
+        for (uint32_t size : sizes) {
+            total *= size;
+        }
+        std::cout << "Total size calculated: " << total << std::endl;
+        return total;
+    }
+
+public:
+    MemoryTrackerNestedArray(uint32_t base_addr,
+                       const std::vector<uint32_t>& sizes_, 
+                       const std::vector<uint32_t>& offsets_,
+                       const Criteria&... criteria)
+        : base_address(base_addr), sizes(sizes_), offsets(offsets_)
+    {
+        // std::cout << "Initializing MemoryTrackerNestedArray" << std::endl;
+        // std::cout << "Base address: 0x" << std::hex << base_address << std::dec << std::endl;
+        // std::cout << "Sizes: ";
+        // for (auto size : sizes) std::cout << size << " ";
+        // std::cout << std::endl;
+        // std::cout << "Offsets: ";
+        // for (auto offset : offsets) std::cout << "0x" << std::hex << offset << " ";
+        // std::cout << std::dec << std::endl;
+
+        if (sizes.size() != offsets.size()) {
+            std::cerr << "Sizes and offsets must have the same length\n";
+        }
+
+        uint32_t total_size = calculateTotalSize();
+        trackers.reserve(total_size);
+
+        std::vector<uint32_t> indices(sizes.size(), 0);
+        for (uint32_t i = 0; i < total_size; ++i) {
+            uint32_t address = calculateAddress(indices);
+            trackers.emplace_back(address, criteria...);
+
+            // std::cout << "Created MemoryTracker " << i << " at address 0x" << std::hex << address << std::dec << std::endl;
+
+            // Update indices
+            for (int j = indices.size() - 1; j >= 0; --j) {
+                if (++indices[j] < sizes[j]) break;
+                indices[j] = 0;
+            }
+        }
+        // std::cout << "MemoryTrackerNestedArray initialization complete" << std::endl;
+    }
+
+    MemoryTracker<T, Stages, Criteria...>& at(const std::vector<uint32_t>& indices) {
+        // std::cout << "Accessing MemoryTracker at indices: ";
+        // for (auto idx : indices) std::cout << idx << " ";
+        // std::cout << std::endl;
+
+        if (indices.size() != sizes.size()) {
+            std::cerr << "Number of indices must match the number of dimensions\n";
+        }
+
+        uint32_t index = 0;
+        for (size_t i = 0; i < indices.size(); ++i) {
+            if (indices[i] >= sizes[i]) {
+                std::cerr << "Index out of range\n";
+            }
+            if (i < indices.size()-1){
+                index += indices[i] * sizes[indices.size()-1-i];
+            }
+            else{
+                index += indices[i];
+            }
+        }
+
+        // std::cout << "Calculated flat index: " << std::dec<<  index << std::hex << std::endl;
+        return trackers[index];
+    }
+
+    const MemoryTracker<T, Stages, Criteria...>& at(const std::vector<uint32_t>& indices) const {
+        return const_cast<MemoryTrackerNestedArray*>(this)->at(indices);
+    }
+
+    void run(const Core::CPUThreadGuard& guard) {
+        // std::cout << "Running all MemoryTrackers with value: " << val << std::endl;
+        for (auto& tracker : trackers) {
+            tracker.run(guard);
+        }
+        // std::cout << "Run complete for all MemoryTrackers" << std::endl;
+    }
+
+    void reset() {
+        // std::cout << "Resetting all MemoryTrackers" << std::endl;
+        for (auto& tracker : trackers) {
+            tracker.reset();
+        }
+        // std::cout << "Reset complete for all MemoryTrackers" << std::endl;
+    }
 };

@@ -24,7 +24,7 @@
 #include "Core/MemoryTracker.h"
 #include "Core/MemoryTrackerCriteria.h"
 #include "Common/TagSet.h"
-
+#include "Core/RioJsonUtil.h"
 
 #include <iostream>
 #include <functional>
@@ -151,23 +151,26 @@ static const u32 aPin2 = 0x804E66AC;
 MemoryTracker<u32, 1> rPin2(aPin2);
 
 //Shot Addrs
-static const u32 aShotPhase = 0x804ECD4B;
+static const u32 aShotPhase_P1 = 0x804ECD4B;
 constexpr auto sp_swing_start_1 = std::make_pair(1, not_(eq(0xB)));
 constexpr auto sp_swing_start_0 = std::make_pair(0, eq(0xB));
-MemoryTracker<u8, 2, decltype(sp_swing_start_0), decltype(sp_swing_start_1)> rShotPhase(aShotPhase, sp_swing_start_0, sp_swing_start_1);
+MemoryTracker<u8, 2, decltype(sp_swing_start_0), decltype(sp_swing_start_1)> rShotPhase(aShotPhase_P1, sp_swing_start_0, sp_swing_start_1);
 
-static const u32 aPlayerShotStatus = 0x804ECE98;
+static const u32 aPlayerShotStatus_P1 = 0x804ECE98;
 constexpr auto pss_preswing_criteria_1 = std::make_pair(1, eq(4));
 constexpr auto pss_preswing_criteria_0 = std::make_pair(0, eq(4));
-MemoryTrackerArray<u32, 2, 4, decltype(pss_preswing_criteria_0), decltype(pss_preswing_criteria_1)> rPlayerShotStatus_preswing(aPlayerShotStatus, 0x5204, pss_preswing_criteria_0, pss_preswing_criteria_1);
+MemoryTrackerArray<u32, 2, 4, decltype(pss_preswing_criteria_0), decltype(pss_preswing_criteria_1)> rPlayerShotStatus_preswing(aPlayerShotStatus_P1, 0x5204, pss_preswing_criteria_0, pss_preswing_criteria_1);
 
 constexpr auto pss_swing_criteria_1 = std::make_pair(1, not_(eq(6)));
 constexpr auto pss_swing_criteria_0 = std::make_pair(0, eq(6));
-MemoryTrackerArray<u32, 2, 4, decltype(pss_swing_criteria_0), decltype(pss_swing_criteria_1)> rPlayerShotStatus_swing(aPlayerShotStatus, 0x5204, pss_swing_criteria_0, pss_swing_criteria_1);
+MemoryTrackerArray<u32, 2, 4, decltype(pss_swing_criteria_0), decltype(pss_swing_criteria_1)> rPlayerShotStatus_swing(aPlayerShotStatus_P1, 0x5204, pss_swing_criteria_0, pss_swing_criteria_1);
 
 constexpr auto pss_postswing_criteria_1 = std::make_pair(1, not_(eq(8)));
 constexpr auto pss_postswing_criteria_0 = std::make_pair(0, eq(8));
-MemoryTrackerArray<u32, 2, 4, decltype(pss_postswing_criteria_0), decltype(pss_postswing_criteria_1)> rPlayerShotStatus_postswing(aPlayerShotStatus, 0x5204, pss_postswing_criteria_0, pss_postswing_criteria_1);
+MemoryTrackerArray<u32, 2, 4, decltype(pss_postswing_criteria_0), decltype(pss_postswing_criteria_1)> rPlayerShotStatus_postswing(aPlayerShotStatus_P1, 0x5204, pss_postswing_criteria_0, pss_postswing_criteria_1);
+
+static const u32 aShotNum_P1 = 0x806CB4FC;
+MemoryTrackerArray<u32, 1, 4> rPlayerShotNum(aShotNum_P1, 0x1c8);
 
 static const u32 aShotType = 0x804ecd50;
 MemoryTracker<u32, 1> rShotType(aShotType);
@@ -249,15 +252,21 @@ MemoryTracker<u32, 1> rLieRng(aLieRng);
 static const u32 aLieRngSeed = 0x804ecd3c;
 MemoryTracker<u32, 1> rLieRngSeed(aLieRngSeed);
 
-//Final Score Addrs
+
+// //Final Score Addrs
+constexpr uint32_t PLAYER_OFFSET = 0x1c8;
+constexpr uint32_t HOLE_OFFSET = 0x8;
+constexpr uint32_t NUM_PLAYERS = 4;
+constexpr uint32_t NUM_HOLES = 18;
+constexpr std::size_t NUM_STAGES = 1;
 static const u32 aFinalScoreHoleTotal = 0x806CB348;
-MemoryTrackerArray<u8, 1, 4> rFinalScoreHoleTotal(aFinalScoreHoleTotal, 0x1C8);
+MemoryTrackerNestedArray<u8, 1> rFinalScoreHoleTotal(aFinalScoreHoleTotal, {NUM_PLAYERS, NUM_HOLES}, {PLAYER_OFFSET, HOLE_OFFSET});
 
 static const u32 aFinalScoreHolePutts = 0x806CB349;
-MemoryTrackerArray<u8, 1, 4> rFinalScoreHolePutts(aFinalScoreHolePutts, 0x1C8);
+MemoryTrackerNestedArray<u8, 1> rFinalScoreHolePutts(aFinalScoreHolePutts, {NUM_PLAYERS, NUM_HOLES}, {PLAYER_OFFSET, HOLE_OFFSET});
 
 static const u32 aFinalScoreHoleStrokes = 0x806CB350;
-MemoryTrackerArray<u8, 1, 4> rFinalScoreHoleStrokes(aFinalScoreHoleStrokes, 0x1C8);
+MemoryTrackerNestedArray<u8, 1> rFinalScoreHoleStrokes(aFinalScoreHoleStrokes, {NUM_PLAYERS, NUM_HOLES}, {PLAYER_OFFSET, HOLE_OFFSET});
 
 // Type definition for MGTT_State transition functions
 using StateFunction = std::function<void(const Core::CPUThreadGuard&)>;
@@ -355,6 +364,13 @@ private:
     std::unordered_map<MGTT_State, StateFunction> stateFunctions;
     int frame = 0;
 
+    std::unique_ptr<JSONWriter> writer;
+
+    void initializeWriter(std::string filename) {
+        std::string outputFilename = fmt::format("{}.json", filename);
+        writer = std::make_unique<JSONWriter>(outputFilename);
+    }
+
     struct RioInfo {
         std::map<int, LocalPlayers::LocalPlayers::Player> rioUsers;
         std::optional<std::pair<int, std::string>> tag_set_id_name;
@@ -392,7 +408,9 @@ private:
             rWedges.run(guard);
 
             if (rPlayerCount.isActive() && rGameMode.isActive()) { 
-                std::cout << "RoundInfo | GameID=" <<  std::to_string(RioUtil::genRand32()) << "\n";
+                u32 gameId = RioUtil::genRand32();
+                initializeWriter(std::to_string(gameId));
+                std::cout << "RoundInfo | GameID=" <<  std::to_string(gameId) << "\n";
                 std::cout << "RoundInfo | TagSetID=" << (rioInfo.tag_set_id_name.has_value() ? std::to_string((*rioInfo.tag_set_id_name).first) : "null") << "\n";
                 std::cout << "RoundInfo | TagSet=" << (rioInfo.tag_set_id_name.has_value() ? (*rioInfo.tag_set_id_name).second : "null") << "\n";
                 std::cout << "RoundInfo | GameMode=" <<  std::to_string(*rGameMode.getValue(14)) << "\n";
@@ -402,17 +420,29 @@ private:
                 std::cout << "RoundInfo | Tees=" << std::to_string(*rTees.getValue(14)) << "\n";
                 std::cout << "RoundInfo | PlayerCount=" << std::to_string(*rPlayerCount.getValue()) << "\n";
 
+                writer->startObject("Round Info");
+                writer->writeKeyValue("GameId", gameId);
+                writer->writeKeyValue("TagSetID", (rioInfo.tag_set_id_name.has_value() ? std::to_string((*rioInfo.tag_set_id_name).first) : "null"));
+                writer->writeKeyValue("TagSet", (rioInfo.tag_set_id_name.has_value() ? (*rioInfo.tag_set_id_name).second : "null"));
+                writer->writeKeyValue("GameMode", *rGameMode.getValue(14));
+                writer->writeKeyValue("CourseID", *rCourseId.getValue(14));
+                writer->writeKeyValue("RoundFormat", *rRoundFormat.getValue(14));
+                writer->writeKeyValue("GreenType", *rGreenType.getValue(14));
+                writer->writeKeyValue("Tees", *rTees.getValue(14));
+                writer->writeKeyValue("PlayerCount", *rPlayerCount.getValue());
+
                 // Get User info
                 if (!rioInfo.netplay) {
                     readLocalPlayers(*rPlayerCount.getValue());
                 }
 
                 // Process users
+                writer->startArray("Golfers");
                 for (int i=0; i < *rPlayerCount.getValue(); ++i){
                     auto player_port = rPlayerPorts.getByteValue(0, i);
-                    std::cout << "P" << std::to_string(i) << " Port=" << std::to_string(*player_port) << "\n";
 
                     //Get Rio Name
+                    std::cout << "P" << std::to_string(i) << " Port=" << std::to_string(*player_port) << "\n";
                     std::cout << "RoundInfo | Player=" << std::to_string(i) << "\n";
                     std::cout << "RoundInfo | Port=" << std::to_string(*player_port) << "\n";
                     std::cout << "RoundInfo | RioUsername=" << rioInfo.rioUsers[*player_port].GetUsername() << "\n";
@@ -428,7 +458,24 @@ private:
                     std::cout << "RoundInfo | Irons=" << std::to_string(*rIrons[i].getValue()) << "\n";
                     std::cout << "RoundInfo | Wedges=" << std::to_string(*rWedges[i].getValue()) << "\n";
                     
+                    
+                    writer->startObject(fmt::format("P{}", i));
+                    writer->writeKeyValue("Port", *player_port);
+                    writer->writeKeyValue("RioUsername", rioInfo.rioUsers[*player_port].GetUsername());
+
+                    writer->writeKeyValue("HandicapsEnabled", *rHandicapsEnabled[i].getValue(14));
+                    writer->writeKeyValue("SimulationLine", *rSimulationLine[i].getValue(14));
+                    writer->writeKeyValue("Mulligans", *rMulligans[i].getValue(14));
+                    writer->writeKeyValue("HandicapTees", *rHandicapTees[i].getValue(14));
+                    writer->writeKeyValue("CharId", *rCharId[i].getValue(14));
+                    writer->writeKeyValue("Starred", *rStarredAtMenu[i].getValue(14));
+                    writer->writeKeyValue("Handedness", *rHandedness[i].getValue(14));
+                    writer->writeKeyValue("Woods", *rWoods[i].getValue());
+                    writer->writeKeyValue("Irons", *rIrons[i].getValue());
+                    writer->writeKeyValue("Wedges", *rWedges[i].getValue());
+                    writer->endElement();
                 }
+                writer->endElement();
             }
         }
 
@@ -440,12 +487,25 @@ private:
             rRainBool.run(guard);
             rPin.run(guard);
             rPin2.run(guard);
+
+            writer->startArray("Holes");
             std::cout << "  HoleInfo | CurrentHole=" << std::to_string(*rCurrentHole.getValue()) << "\n";
             std::cout << "  HoleInfo | WindRads=" << std::to_string(*rWindRads.getValue()) << "\n";
             std::cout << "  HoleInfo | WindSpeed=" << std::to_string(*rWindSpeed.getValue()) << "\n";
             std::cout << "  HoleInfo | RainBool=" << std::to_string(*rRainBool.getValue()) << "\n";
             std::cout << "  HoleInfo | Pin=" << std::to_string(*rPin.getValue()) << "\n";
             std::cout << "  HoleInfo | Pin2=" << std::to_string(*rPin2.getValue()) << "\n";
+
+
+            writer->startObject(fmt::format("H{}", *rCurrentHole.getValue()));
+            writer->writeKeyValue("CurrentHole", *rCurrentHole.getValue());
+            writer->writeKeyValue("HoleIndex", "???");
+            writer->writeKeyValue("WindRads", *rWindRads.getValue());
+            writer->writeKeyValue("WindSpeed", *rWindSpeed.getValue());
+            writer->writeKeyValue("RainBool", *rRainBool.getValue());
+            writer->writeKeyValue("Pin", *rPin.getValue());
+            writer->writeKeyValue("Pin2", *rPin2.getValue());
+            writer->startArray("Shots");
             
             transitionTo(MGTT_State::TRANSITION);
         }
@@ -494,6 +554,19 @@ private:
             std::cout << "  HoleInfo | RainBool=" << std::to_string(*rRainBool.getValue()) << "\n";
             std::cout << "  HoleInfo | Pin=" << std::to_string(*rPin.getValue()) << "\n";
             std::cout << "  HoleInfo | Pin2=" << std::to_string(*rPin2.getValue()) << "\n";
+
+            writer->endElement(); // End previous ShotArray
+            writer->endElement(); // End previous Hole
+            writer->startObject(fmt::format("H{}", *rCurrentHole.getValue()));
+            writer->writeKeyValue("CurrentHole", *rCurrentHole.getValue());
+            writer->writeKeyValue("HoleIndex", "???");
+            writer->writeKeyValue("WindRads", *rWindRads.getValue());
+            writer->writeKeyValue("WindSpeed", *rWindSpeed.getValue());
+            writer->writeKeyValue("RainBool", *rRainBool.getValue());
+            writer->writeKeyValue("Pin", *rPin.getValue());
+            writer->writeKeyValue("Pin2", *rPin2.getValue());
+
+            writer->startArray("Shots");
         }
 
         rPlayerTurn.run(guard);
@@ -527,6 +600,7 @@ private:
                 std::cout << "Golfer P" << std::to_string(*player_turn) << " Swing Committed\n";
 
                 //Collect swing info
+                rPlayerShotNum.run(guard);
                 rShotType.run(guard);
                 rClubType.run(guard);
                 rPowerMeterSetting.run(guard);
@@ -560,6 +634,24 @@ private:
                 std::cout << "  ShotInfo | ImpactPoint_X=" << std::to_string(*rImpactPoint_X.getValue()) << "\n";
                 std::cout << "  ShotInfo | ImpactPoint_Y=" << std::to_string(*rImpactPoint_Y.getValue()) << "\n";
                 std::cout << "  ShotInfo | Spin=" << std::to_string(*rSpin.getValue()) << "\n";
+
+                writer->startObject(fmt::format("ShotP{}S{}", *player_turn, *rPlayerShotNum[*player_turn].getValue()));
+                writer->writeKeyValue("ShotInfo", *rShotType.getValue());
+                writer->writeKeyValue("ClubType", *rClubType.getValue());
+                writer->writeKeyValue("PowerMeterSetting", *rPowerMeterSetting.getValue());
+                writer->writeKeyValue("PowerMeterSettingCopy", *rPowerMeterSettingCopy.getValue());
+                writer->writeKeyValue("PowerMeterMaximum", *rPowerMeterMaximum.getValue());
+                writer->writeKeyValue("PowerMeterActual", *rPowerMeterActual.getValue());
+                writer->writeKeyValue("PowerMeterActualCopy", *rPowerMeterActualCopy.getValue());
+                writer->writeKeyValue("ShotAccuracy", *rShotAccuracy.getValue());
+                writer->writeKeyValue("ShotAccuracy2", *rShotAccuracy2.getValue());
+                writer->writeKeyValue("ManualVsAuto", *rManualVsAuto.getValue());
+                writer->writeKeyValue("AimAngleRadians", *rAimAngleRadians.getValue());
+                writer->writeKeyValue("ImpactPoint_Y_Preshot", *rImpactPoint_Y_Preshot.getValue());
+                writer->writeKeyValue("ImpactPoint_X_Preshot", *rImpactPoint_X_Preshot.getValue());
+                writer->writeKeyValue("ImpactPoint_X", *rImpactPoint_X.getValue());
+                writer->writeKeyValue("ImpactPoint_Y", *rImpactPoint_Y.getValue());
+                writer->writeKeyValue("Spin", *rSpin.getValue());
 
                 transitionTo(MGTT_State::POSTSWING);
             }
@@ -606,6 +698,18 @@ private:
                 std::cout << "  Shot Result | LieRng=" << std::to_string(*rLieRng.getValue()) << "\n";
                 std::cout << "  Shot Result | LieRngSeed=" << std::to_string(*rLieRngSeed.getValue()) << "\n";
                 std::cout << "  Shot Result | rShotDistance=" << std::to_string(*rShotDistance.getValue()) << "\n";
+
+                writer->writeKeyValue("BallPos_X", *rBallPos_X.getValue());
+                writer->writeKeyValue("BallPos_Y", *rBallPos_Y.getValue());
+                writer->writeKeyValue("BallPos_Z", *rBallPos_Z.getValue());
+                writer->writeKeyValue("DistanceToHole", *rDistanceToHole.getValue());
+                writer->writeKeyValue("LieType", *rLieType.getValue());
+                writer->writeKeyValue("LieQuality", *rLieQuality.getValue());
+                writer->writeKeyValue("LieRngRange", *rLieRngRange.getValue());
+                writer->writeKeyValue("LieRng", *rLieRng.getValue());
+                writer->writeKeyValue("LieRngSeed", *rLieRngSeed.getValue());
+                writer->writeKeyValue("rShotDistance", *rShotDistance.getValue());
+                writer->endElement(); //End Shot
                 transitionTo(MGTT_State::TRANSITION);
             }
         }
@@ -613,15 +717,35 @@ private:
 
 
     void roundOverState(const Core::CPUThreadGuard& guard) {
+
+        // Write the JSON file
+        writer->endJSON();
+
+        // Reset the writer
+        writer.reset();
+        
         rFinalScoreHoleTotal.run(guard);
         rFinalScoreHolePutts.run(guard);
         rFinalScoreHoleStrokes.run(guard);
 
-        // if (!rPlayerCount.isActive()) {
-        //     std::cerr << "ERROR: RoundOverState has incorrect PlayerCount\n";
-        // }
-        // for (int i=0; i<*rPlayerCount.getValue(); ++i) {
-        // }
+        for (u32 player = 0; player < NUM_PLAYERS; ++player) {
+            std::cout << "Player " << player + 1 << ":\n";
+            
+            std::cout << "  FinalScores | Player=" << player << "\n";
+            for (u32 hole = 0; hole < NUM_HOLES; ++hole) {            
+                auto total_value = rFinalScoreHoleTotal.at({player, hole}).getValue();
+                auto putts_value = rFinalScoreHolePutts.at({player, hole}).getValue();
+                auto strokes_value = rFinalScoreHoleStrokes.at({player, hole}).getValue();
+                std::cout << "    FinalScores | Hole=" << hole << "\n";
+                std::cout << "      FinalScores | Score=" << (total_value ? std::to_string(*total_value) : "null") << "\n";
+                std::cout << "      FinalScores | Strokes=" << (total_value ? std::to_string(*strokes_value) : "null") << "\n";
+                std::cout << "      FinalScores | Putts=" << (total_value ? std::to_string(*putts_value) : "null") << "\n";
+            }
+        }
+        writer->endJSON();
+
+        // Reset the writer
+        writer.reset();
 
     }
 

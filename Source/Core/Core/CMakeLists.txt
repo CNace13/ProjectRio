@@ -438,6 +438,7 @@ add_library(core
   IOS/WFS/WFSSRV.h
   TrackerAdr.h
   Pipeline.h
+  JsonWriter.h
   MemoryTracker.h
   RioUtil.cpp
   RioUtil.h
