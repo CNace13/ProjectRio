@@ -724,7 +724,10 @@ private:
 
         // Reset the writer
         writer.reset();
+
+        transitionTo(MGTT_State::MENU);
         
+        //TODO write these to file as well
         rFinalScoreHoleTotal.run(guard);
         rFinalScoreHolePutts.run(guard);
         rFinalScoreHoleStrokes.run(guard);
@@ -743,10 +746,10 @@ private:
                 std::cout << "      FinalScores | Putts=" << (total_value ? std::to_string(*putts_value) : "null") << "\n";
             }
         }
-        writer->endJSON();
+        // writer->endJSON();
 
-        // Reset the writer
-        writer.reset();
+        // // Reset the writer
+        // writer.reset();
 
     }
 
