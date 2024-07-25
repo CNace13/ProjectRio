@@ -236,9 +236,7 @@ public:
         endChars.push('}');
     }
 
-    ~JSONWriter() {
-        endJSON();
-    }
+    ~JSONWriter() { }
 
     template<typename T>
     void writeKeyValue(const std::string& key, const T& value) {
