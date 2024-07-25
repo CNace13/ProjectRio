@@ -183,22 +183,22 @@ public:
 #include <type_traits>
 #include <fmt/core.h>
 #include <fmt/ostream.h>
-#include <thread>
-#include <mutex>
-#include <condition_variable>
-#include <atomic>
+#include <iostream>
 
 class JSONWriter {
+public:
+    enum class OutputMode {
+        File,
+        Cout,
+        Both
+    };
+
 private:
     std::string filename;
     std::string buffer;
     std::stack<char> endChars;
     bool isFirstElement = true;
-    std::mutex mtx;
-    std::condition_variable cv;
-    std::atomic<bool> writeRequested{false};
-    std::atomic<bool> writeCompleted{false};
-    std::thread writeThread;
+    OutputMode outputMode;
 
     void writeIndent() {
         buffer += std::string(endChars.size() * 2, ' ');
@@ -216,34 +216,32 @@ private:
     }
 
     void writeToFile() {
-        std::unique_lock<std::mutex> lock(mtx);
-        cv.wait(lock, [this] { return writeRequested.load(); });
-
         std::ofstream file(filename);
-        file << buffer;
-        file.close();
+        if (file.is_open()) {
+            file << buffer;
+            file.close();
+        } else {
+            std::cerr << "Unable to open file for writing";
+        }
+    }
 
-        writeCompleted.store(true);
-        cv.notify_one();
+    void writeToCout() {
+        std::cout << buffer;
     }
 
 public:
-    JSONWriter(const std::string& filename) : filename(filename) {
+    JSONWriter(const std::string& filename, OutputMode mode = OutputMode::File)
+        : filename(filename), outputMode(mode) {
         buffer = "{\n";
         endChars.push('}');
-        writeThread = std::thread(&JSONWriter::writeToFile, this);
     }
 
     ~JSONWriter() {
         endJSON();
-        if (writeThread.joinable()) {
-            writeThread.join();
-        }
     }
 
     template<typename T>
     void writeKeyValue(const std::string& key, const T& value) {
-        std::lock_guard<std::mutex> lock(mtx);
         if (!isFirstElement) {
             buffer += ",\n";
         }
@@ -255,7 +253,6 @@ public:
     }
 
     void startObject(const std::string& key) {
-        std::lock_guard<std::mutex> lock(mtx);
         if (!isFirstElement) {
             buffer += ",\n";
         }
@@ -267,7 +264,6 @@ public:
     }
 
     void startArray(const std::string& key) {
-        std::lock_guard<std::mutex> lock(mtx);
         if (!isFirstElement) {
             buffer += ",\n";
         }
@@ -279,7 +275,6 @@ public:
     }
 
     void endElement() {
-        std::lock_guard<std::mutex> lock(mtx);
         buffer += "\n";
         endChars.pop();
         writeIndent();
@@ -288,22 +283,20 @@ public:
     }
 
     void endJSON() {
-        {
-            std::lock_guard<std::mutex> lock(mtx);
-            while (!endChars.empty()) {
-                buffer += "\n";
-                endChars.pop();
-                if (!endChars.empty()) {
-                    writeIndent();
-                    buffer += endChars.top();
-                }
+        while (!endChars.empty()) {
+            buffer += "\n";
+            endChars.pop();
+            if (!endChars.empty()) {
+                writeIndent();
+                buffer += endChars.top();
             }
         }
 
-        writeRequested.store(true);
-        cv.notify_one();
-
-        std::unique_lock<std::mutex> lock(mtx);
-        cv.wait(lock, [this] { return writeCompleted.load(); });
+        if (outputMode == OutputMode::File || outputMode == OutputMode::Both) {
+            writeToFile();
+        }
+        if (outputMode == OutputMode::Cout || outputMode == OutputMode::Both) {
+            writeToCout();
+        }
     }
 };
