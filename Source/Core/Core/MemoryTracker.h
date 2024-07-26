@@ -239,7 +239,7 @@ public:
             // std::cout << "Created MemoryTracker " << i << " at address 0x" << std::hex << address << std::dec << std::endl;
 
             // Update indices
-            for (int j = indices.size() - 1; j >= 0; --j) {
+            for (size_t j = indices.size() - 1; j >= 0; --j) {
                 if (++indices[j] < sizes[j]) break;
                 indices[j] = 0;
             }

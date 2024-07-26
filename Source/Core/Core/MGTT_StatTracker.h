@@ -31,6 +31,9 @@
 #include <functional>
 #include <unordered_map>
 
+#include <nlohmann/json.hpp>
+using json = nlohmann::json;
+
 namespace Tag {
 class TagSet;
 }
@@ -335,12 +338,13 @@ private:
     std::vector<uint32_t> sizes = {NUM_PLAYERS, NUM_HOLES};
     std::vector<uint32_t> offsets = {PLAYER_OFFSET, HOLE_OFFSET};
 
-    std::unique_ptr<JSONWriter> writer;
+    std::unique_ptr<json> writer;
 
     void initWriter(std::string filename) {
         std::string outputFilename = fmt::format("{}{}.json", File::GetUserPath(D_MSSBFILES_IDX), filename);
         std::cout << "JSON File Loc=" << outputFilename << "\n";
-        writer = std::make_unique<JSONWriter>(outputFilename, JSONWriter::OutputMode::Both);
+        writer = std::make_unique<json>();
+        (*writer)["filename"] = outputFilename;
     }
 
     void resetWriter() {
@@ -397,15 +401,15 @@ private:
                 std::cout << "RoundInfo | PlayerCount=" << std::to_string(*rPlayerCount->getValue()) << "\n";
 
                 writer->startObject("Round Info");
-                writer->writeKeyValue("GameId", gameId);
-                writer->writeKeyValue("TagSetID", (rioInfo.tag_set_id_name.has_value() ? std::to_string((*rioInfo.tag_set_id_name).first) : "null"));
-                writer->writeKeyValue("TagSet", (rioInfo.tag_set_id_name.has_value() ? (*rioInfo.tag_set_id_name).second : "null"));
-                writer->writeKeyValue("GameMode", *rGameMode->getValue(14));
-                writer->writeKeyValue("CourseID", *rCourseId->getValue(14));
-                writer->writeKeyValue("RoundFormat", *rRoundFormat->getValue(14));
-                writer->writeKeyValue("GreenType", *rGreenType->getValue(14));
-                writer->writeKeyValue("Tees", *rTees->getValue(14));
-                writer->writeKeyValue("PlayerCount", *rPlayerCount->getValue());
+                (*writer)["GameId"] = gameId;
+                (*writer)["TagSetID"] = rioInfo.tag_set_id_name.has_value() ? std::to_string((*rioInfo.tag_set_id_name).first) : "null"));
+                (*writer)["TagSet"] = rioInfo.tag_set_id_name.has_value() ? (*rioInfo.tag_set_id_name).second : "null"));
+                (*writer)["GameMode"] = *rGameMode->getValue(14));
+                (*writer)["CourseID", *rCourseId->getValue(14));
+                (*writer)["RoundFormat", *rRoundFormat->getValue(14));
+                (*writer)["GreenType", *rGreenType->getValue(14));
+                (*writer)["Tees", *rTees->getValue(14));
+                (*writer)["PlayerCount", *rPlayerCount->getValue());
 
                 // Get User info
                 if (!rioInfo.netplay) {
@@ -436,19 +440,19 @@ private:
                     
                     
                     writer->startObject(fmt::format("P{}", i));
-                    writer->writeKeyValue("Port", *player_port);
-                    writer->writeKeyValue("RioUsername", rioInfo.rioUsers[*player_port].GetUsername());
+                    (*writer)["Port", *player_port);
+                    (*writer)["RioUsername", rioInfo.rioUsers[*player_port].GetUsername());
 
-                    writer->writeKeyValue("HandicapsEnabled", (*(*rHandicapsEnabled)[i].getValue(14)));
-                    writer->writeKeyValue("SimulationLine", (*(*rSimulationLine)[i].getValue(14)));
-                    writer->writeKeyValue("Mulligans", (*(*rMulligans)[i].getValue(14)));
-                    writer->writeKeyValue("HandicapTees", (*(*rHandicapTees)[i].getValue(14)));
-                    writer->writeKeyValue("CharId", (*(*rCharId)[i].getValue(14)));
-                    writer->writeKeyValue("Starred", (*(*rStarredAtMenu)[i].getValue(14)));
-                    writer->writeKeyValue("Handedness", (*(*rHandedness)[i].getValue(14)));
-                    writer->writeKeyValue("Woods", (*(*rWoods)[i].getValue()));
-                    writer->writeKeyValue("Irons", (*(*rIrons)[i].getValue()));
-                    writer->writeKeyValue("Wedges", (*(*rWedges)[i].getValue()));
+                    (*writer)["HandicapsEnabled", (*(*rHandicapsEnabled)[i].getValue(14)));
+                    (*writer)["SimulationLine", (*(*rSimulationLine)[i].getValue(14)));
+                    (*writer)["Mulligans", (*(*rMulligans)[i].getValue(14)));
+                    (*writer)["HandicapTees", (*(*rHandicapTees)[i].getValue(14)));
+                    (*writer)["CharId", (*(*rCharId)[i].getValue(14)));
+                    (*writer)["Starred", (*(*rStarredAtMenu)[i].getValue(14)));
+                    (*writer)["Handedness", (*(*rHandedness)[i].getValue(14)));
+                    (*writer)["Woods", (*(*rWoods)[i].getValue()));
+                    (*writer)["Irons", (*(*rIrons)[i].getValue()));
+                    (*writer)["Wedges", (*(*rWedges)[i].getValue()));
                     writer->endElement();
                 }
                 writer->endElement();
@@ -474,13 +478,13 @@ private:
 
 
             writer->startObject(fmt::format("H{}", *rCurrentHole->getValue()));
-            writer->writeKeyValue("CurrentHole", *rCurrentHole->getValue());
-            writer->writeKeyValue("HoleIndex", "???");
-            writer->writeKeyValue("WindRads", *rWindRads->getValue());
-            writer->writeKeyValue("WindSpeed", *rWindSpeed->getValue());
-            writer->writeKeyValue("RainBool", *rRainBool->getValue());
-            writer->writeKeyValue("Pin", *rPin->getValue());
-            writer->writeKeyValue("Pin2", *rPin2->getValue());
+            (*writer)["CurrentHole", *rCurrentHole->getValue());
+            (*writer)["HoleIndex", "???");
+            (*writer)["WindRads", *rWindRads->getValue());
+            (*writer)["WindSpeed", *rWindSpeed->getValue());
+            (*writer)["RainBool", *rRainBool->getValue());
+            (*writer)["Pin", *rPin->getValue());
+            (*writer)["Pin2", *rPin2->getValue());
             writer->startArray("Shots");
             
             transitionTo(MGTT_State::TRANSITION);
@@ -534,13 +538,13 @@ private:
             writer->endElement(); // End previous ShotArray
             writer->endElement(); // End previous Hole
             writer->startObject(fmt::format("H{}", *rCurrentHole->getValue()));
-            writer->writeKeyValue("CurrentHole", *rCurrentHole->getValue());
-            writer->writeKeyValue("HoleIndex", "???");
-            writer->writeKeyValue("WindRads", *rWindRads->getValue());
-            writer->writeKeyValue("WindSpeed", *rWindSpeed->getValue());
-            writer->writeKeyValue("RainBool", *rRainBool->getValue());
-            writer->writeKeyValue("Pin", *rPin->getValue());
-            writer->writeKeyValue("Pin2", *rPin2->getValue());
+            (*writer)["CurrentHole", *rCurrentHole->getValue());
+            (*writer)["HoleIndex", "???");
+            (*writer)["WindRads", *rWindRads->getValue());
+            (*writer)["WindSpeed", *rWindSpeed->getValue());
+            (*writer)["RainBool", *rRainBool->getValue());
+            (*writer)["Pin", *rPin->getValue());
+            (*writer)["Pin2", *rPin2->getValue());
 
             writer->startArray("Shots");
         }
@@ -612,22 +616,22 @@ private:
                 std::cout << "  ShotInfo | Spin=" << std::to_string(*rSpin->getValue()) << "\n";
 
                 writer->startObject(fmt::format("ShotP{}S{}", *player_turn, *(*rPlayerShotNum)[*player_turn].getValue()));
-                writer->writeKeyValue("ShotInfo", *rShotType->getValue());
-                writer->writeKeyValue("ClubType", *rClubType->getValue());
-                writer->writeKeyValue("PowerMeterSetting", *rPowerMeterSetting->getValue());
-                writer->writeKeyValue("PowerMeterSettingCopy", *rPowerMeterSettingCopy->getValue());
-                writer->writeKeyValue("PowerMeterMaximum", *rPowerMeterMaximum->getValue());
-                writer->writeKeyValue("PowerMeterActual", *rPowerMeterActual->getValue());
-                writer->writeKeyValue("PowerMeterActualCopy", *rPowerMeterActualCopy->getValue());
-                writer->writeKeyValue("ShotAccuracy", *rShotAccuracy->getValue());
-                writer->writeKeyValue("ShotAccuracy2", *rShotAccuracy2->getValue());
-                writer->writeKeyValue("ManualVsAuto", *rManualVsAuto->getValue());
-                writer->writeKeyValue("AimAngleRadians", *rAimAngleRadians->getValue());
-                writer->writeKeyValue("ImpactPoint_Y_Preshot", *rImpactPoint_Y_Preshot->getValue());
-                writer->writeKeyValue("ImpactPoint_X_Preshot", *rImpactPoint_X_Preshot->getValue());
-                writer->writeKeyValue("ImpactPoint_X", *rImpactPoint_X->getValue());
-                writer->writeKeyValue("ImpactPoint_Y", *rImpactPoint_Y->getValue());
-                writer->writeKeyValue("Spin", *rSpin->getValue());
+                (*writer)["ShotInfo", *rShotType->getValue());
+                (*writer)["ClubType", *rClubType->getValue());
+                (*writer)["PowerMeterSetting", *rPowerMeterSetting->getValue());
+                (*writer)["PowerMeterSettingCopy", *rPowerMeterSettingCopy->getValue());
+                (*writer)["PowerMeterMaximum", *rPowerMeterMaximum->getValue());
+                (*writer)["PowerMeterActual", *rPowerMeterActual->getValue());
+                (*writer)["PowerMeterActualCopy", *rPowerMeterActualCopy->getValue());
+                (*writer)["ShotAccuracy", *rShotAccuracy->getValue());
+                (*writer)["ShotAccuracy2", *rShotAccuracy2->getValue());
+                (*writer)["ManualVsAuto", *rManualVsAuto->getValue());
+                (*writer)["AimAngleRadians", *rAimAngleRadians->getValue());
+                (*writer)["ImpactPoint_Y_Preshot", *rImpactPoint_Y_Preshot->getValue());
+                (*writer)["ImpactPoint_X_Preshot", *rImpactPoint_X_Preshot->getValue());
+                (*writer)["ImpactPoint_X", *rImpactPoint_X->getValue());
+                (*writer)["ImpactPoint_Y", *rImpactPoint_Y->getValue());
+                (*writer)["Spin", *rSpin->getValue());
 
                 transitionTo(MGTT_State::POSTSWING);
             }
@@ -675,16 +679,16 @@ private:
                 std::cout << "  Shot Result | LieRngSeed=" << std::to_string(*rLieRngSeed->getValue()) << "\n";
                 std::cout << "  Shot Result | rShotDistance=" << std::to_string(*rShotDistance->getValue()) << "\n";
 
-                writer->writeKeyValue("BallPos_X", *rBallPos_X->getValue());
-                writer->writeKeyValue("BallPos_Y", *rBallPos_Y->getValue());
-                writer->writeKeyValue("BallPos_Z", *rBallPos_Z->getValue());
-                writer->writeKeyValue("DistanceToHole", *rDistanceToHole->getValue());
-                writer->writeKeyValue("LieType", *rLieType->getValue());
-                writer->writeKeyValue("LieQuality", *rLieQuality->getValue());
-                writer->writeKeyValue("LieRngRange", *rLieRngRange->getValue());
-                writer->writeKeyValue("LieRng", *rLieRng->getValue());
-                writer->writeKeyValue("LieRngSeed", *rLieRngSeed->getValue());
-                writer->writeKeyValue("rShotDistance", *rShotDistance->getValue());
+                (*writer)["BallPos_X", *rBallPos_X->getValue());
+                (*writer)["BallPos_Y", *rBallPos_Y->getValue());
+                (*writer)["BallPos_Z", *rBallPos_Z->getValue());
+                (*writer)["DistanceToHole", *rDistanceToHole->getValue());
+                (*writer)["LieType", *rLieType->getValue());
+                (*writer)["LieQuality", *rLieQuality->getValue());
+                (*writer)["LieRngRange", *rLieRngRange->getValue());
+                (*writer)["LieRng", *rLieRng->getValue());
+                (*writer)["LieRngSeed", *rLieRngSeed->getValue());
+                (*writer)["rShotDistance", *rShotDistance->getValue());
                 writer->endElement(); //End Shot
                 transitionTo(MGTT_State::TRANSITION);
             }

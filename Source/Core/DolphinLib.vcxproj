@@ -68,13 +68,18 @@
   <Import Project="$(ExternalsDir)zlib-ng\exports.props" />
   <Import Project="$(ExternalsDir)zstd\exports.props" />
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
-  <ImportGroup Label="ExtensionTargets" />
+  <ImportGroup Label="ExtensionTargets">
+    <Import Project="..\packages\nlohmann.json.3.11.2\build\native\nlohmann.json.targets" Condition="Exists('..\packages\nlohmann.json.3.11.2\build\native\nlohmann.json.targets')" />
+  </ImportGroup>
   <PropertyGroup>
     <BuildInfoTemplate>Common\build_info.txt.in</BuildInfoTemplate>
     <BuildInfoOutput>$(BinaryOutputDir)build_info.txt</BuildInfoOutput>
   </PropertyGroup>
   <ItemGroup>
     <Text Include="$(BuildInfoTemplate)" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="packages.config" />
   </ItemGroup>
   <UsingTask TaskName="GetProductVersion" TaskFactory="CodeTaskFactory" AssemblyFile="$(MSBuildToolsPath)\Microsoft.Build.Tasks.Core.dll">
     <ParameterGroup>
@@ -94,5 +99,11 @@
     </GetProductVersion>
     <Message Text="VCToolsProductVersion $(VCToolsProductVersion)" Importance="High" />
     <WriteLinesToFile File="$(BuildInfoOutput)" Lines="$([System.IO.File]::ReadAllText($(BuildInfoTemplate)).Replace('${VC_TOOLS_VERSION}', $(VCToolsProductVersion)))" Overwrite="true" />
+  </Target>
+  <Target Name="EnsureNuGetPackageBuildImports" BeforeTargets="PrepareForBuild">
+    <PropertyGroup>
+      <ErrorText>This project references NuGet package(s) that are missing on this computer. Use NuGet Package Restore to download them.  For more information, see http://go.microsoft.com/fwlink/?LinkID=322105. The missing file is {0}.</ErrorText>
+    </PropertyGroup>
+    <Error Condition="!Exists('..\packages\nlohmann.json.3.11.2\build\native\nlohmann.json.targets')" Text="$([System.String]::Format('$(ErrorText)', '..\packages\nlohmann.json.3.11.2\build\native\nlohmann.json.targets'))" />
   </Target>
 </Project>
