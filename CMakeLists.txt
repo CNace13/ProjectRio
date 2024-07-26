@@ -1,7 +1,7 @@
 ########################################
 # General setup
 #
-cmake_minimum_required(VERSION 3.13)
+cmake_minimum_required(VERSION 3.14)
 
 cmake_policy(SET CMP0079 NEW) # let target_link_libraries() link to a target defined in a different directory
 cmake_policy(SET CMP0080 OLD) # allow using BundleUtilities at configure time
@@ -601,6 +601,21 @@ if(ENABLE_AUTOUPDATE)
   message(STATUS "Enabling automatic update support")
   add_definitions(-DAUTOUPDATE=1)
 endif()
+
+# Include FetchContent module
+include(FetchContent)
+
+# Fetch nlohmann::json
+FetchContent_Declare(
+  json
+  GIT_REPOSITORY https://github.com/nlohmann/json.git
+  GIT_TAG v3.11.2  # Use the appropriate version tag
+)
+
+FetchContent_MakeAvailable(json)
+
+# Link the nlohmann::json library
+target_link_libraries(dolphin-emu PRIVATE nlohmann_json::nlohmann_json)
 
 ########################################
 # Setup include directories (and make sure they are preferred over the Externals)
