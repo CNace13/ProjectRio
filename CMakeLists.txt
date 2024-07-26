@@ -602,21 +602,6 @@ if(ENABLE_AUTOUPDATE)
   add_definitions(-DAUTOUPDATE=1)
 endif()
 
-# Include FetchContent module
-include(FetchContent)
-
-# Fetch nlohmann::json
-FetchContent_Declare(
-  json
-  GIT_REPOSITORY https://github.com/nlohmann/json.git
-  GIT_TAG v3.11.2  # Use the appropriate version tag
-)
-
-FetchContent_MakeAvailable(json)
-
-# Link the nlohmann::json library
-target_link_libraries(dolphin-emu PRIVATE nlohmann_json::nlohmann_json)
-
 ########################################
 # Setup include directories (and make sure they are preferred over the Externals)
 #
