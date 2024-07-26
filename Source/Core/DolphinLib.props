@@ -1044,6 +1044,7 @@
     <ClCompile Include="Core\MemTools.cpp" />
     <ClCompile Include="Core\RioUtil.cpp" />
     <ClCompile Include="Core\Movie.cpp" />
+    <ClCompile Include="Core\MGTT_StatTracker.cpp" />
     <ClCompile Include="Core\MSB_StatTracker.cpp" />
     <ClCompile Include="Core\NetPlayClient.cpp" />
     <ClCompile Include="Core\NetPlayCommon.cpp" />

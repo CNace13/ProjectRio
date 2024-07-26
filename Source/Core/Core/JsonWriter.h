@@ -104,9 +104,29 @@ public:
     void endJSON() {
         while (!endChars.empty()) {
             buffer += "\n";
-            writeIndent();
-            fmt::format_to(std::back_inserter(buffer), "{}", endChars.top());
             endChars.pop();
+            if (!endChars.empty()) {
+                writeIndent();
+                buffer += endChars.top();
+            }
+        }
+
+        if (outputMode == OutputMode::File || outputMode == OutputMode::Both) {
+            writeToFile();
+        }
+        if (outputMode == OutputMode::Cout || outputMode == OutputMode::Both) {
+            writeToCout();
+        }
+    }
+
+    void reset() {
+        while (!endChars.empty()) {
+            buffer += "\n";
+            endChars.pop();
+            if (!endChars.empty()) {
+                writeIndent();
+                buffer += endChars.top();
+            }
         }
 
         if (outputMode == OutputMode::File || outputMode == OutputMode::Both) {

@@ -446,6 +446,7 @@ add_library(core
   LibusbUtils.h
   MSB_StatTracker.cpp
   MSB_StatTracker.h
+  MGTT_StatTracker.cpp
   MGTT_StatTracker.h
   LocalPlayers.cpp
   LocalPlayers.h
