@@ -186,6 +186,7 @@ public:
         stateFunctions[MGTT_State::PRESWING] = [this](const Core::CPUThreadGuard& guard) { this->preswingState(guard); };
         stateFunctions[MGTT_State::POSTSWING] = [this](const Core::CPUThreadGuard& guard) { this->postswingState(guard); };
         stateFunctions[MGTT_State::ROUND_OVER] = [this](const Core::CPUThreadGuard& guard) { this->roundOverState(guard); };
+        stateFunctions[MGTT_State::UNDEFINED] = [this](const Core::CPUThreadGuard& guard) { this->undefinedState(guard); };
         std::cout << "Init MGTT_StatTracker" << std::endl;
 
         initMemoryTrackers();
@@ -696,7 +697,9 @@ private:
             }
         }
     }
+    void undefinedState(const Core::CPUThreadGuard& guard) {
 
+    }
 
     void roundOverState(const Core::CPUThreadGuard& guard) {
 
