@@ -208,6 +208,20 @@ private:
         return total;
     }
 
+    template<typename... Args>
+    void generateTrackers(std::vector<uint32_t>& indices, size_t depth, const Args&... args) {
+        if (depth == indices.size()) {
+            uint32_t address = calculateAddress(indices);
+            trackers.emplace_back(address, args...);
+            return;
+        }
+
+        for (uint32_t i = 0; i < sizes[depth]; ++i) {
+            indices[depth] = i;
+            generateTrackers(indices, depth + 1, args...);
+        }
+    }
+
 public:
     MemoryTrackerNestedArray(uint32_t base_addr,
                        const std::vector<uint32_t>& sizes_, 
@@ -232,18 +246,8 @@ public:
         trackers.reserve(total_size);
 
         std::vector<uint32_t> indices(sizes.size(), 0);
-        for (uint32_t i = 0; i < total_size; ++i) {
-            uint32_t address = calculateAddress(indices);
-            trackers.emplace_back(address, criteria...);
 
-            // std::cout << "Created MemoryTracker " << i << " at address 0x" << std::hex << address << std::dec << std::endl;
-
-            // Update indices
-            for (size_t j = indices.size() - 1; j >= 0; --j) {
-                if (++indices[j] < sizes[j]) break;
-                indices[j] = 0;
-            }
-        }
+        generateTrackers(indices, 0, criteria...);
         // std::cout << "MemoryTrackerNestedArray initialization complete" << std::endl;
     }
 
