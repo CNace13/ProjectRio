@@ -43,8 +43,8 @@ enum class MGTT_State
   INIT,
   MENU,           //Wait for IsGolfRound==1
   ROUND_INFO,     //Collect info related to round
-  PRESWING,       //Wait for swing to start
-  POSTSWING,      //Collect Lie and such
+  HOLE_INFO,     //Collect info related to round
+  SWING,       //Wait for swing to start and Collect Lie and such
   TRANSITION,     //Wait for next swing - inbetween holes or something
   ROUND_OVER,
   UNDEFINED
@@ -182,9 +182,9 @@ public:
         // MGTT_StatTracker MGTT_State functions map
         stateFunctions[MGTT_State::INIT] = [this](const Core::CPUThreadGuard& guard) { this->initState(guard); };
         stateFunctions[MGTT_State::MENU] = [this](const Core::CPUThreadGuard& guard) { this->menuState(guard); };
+        stateFunctions[MGTT_State::HOLE_INFO] = [this](const Core::CPUThreadGuard& guard) { this->holeInfoState(guard); };
         stateFunctions[MGTT_State::TRANSITION] = [this](const Core::CPUThreadGuard& guard) { this->transitionState(guard); };
-        stateFunctions[MGTT_State::PRESWING] = [this](const Core::CPUThreadGuard& guard) { this->preswingState(guard); };
-        stateFunctions[MGTT_State::POSTSWING] = [this](const Core::CPUThreadGuard& guard) { this->postswingState(guard); };
+        stateFunctions[MGTT_State::SWING] = [this](const Core::CPUThreadGuard& guard) { this->swingState(guard); };
         stateFunctions[MGTT_State::ROUND_OVER] = [this](const Core::CPUThreadGuard& guard) { this->roundOverState(guard); };
         stateFunctions[MGTT_State::UNDEFINED] = [this](const Core::CPUThreadGuard& guard) { this->undefinedState(guard); };
         std::cout << "Init MGTT_StatTracker" << std::endl;
@@ -260,8 +260,8 @@ public:
             case MGTT_State::INIT: return "INIT";
             case MGTT_State::MENU: return "MENU";
             case MGTT_State::ROUND_INFO: return "ROUND_INFO";
-            case MGTT_State::PRESWING: return "PRESWING";
-            case MGTT_State::POSTSWING: return "POSTSWING";
+            case MGTT_State::HOLE_INFO: return "HOLE_INFO";
+            case MGTT_State::SWING: return "SWING";
             case MGTT_State::TRANSITION: return "TRANSITION";
             case MGTT_State::ROUND_OVER: return "ROUND_OVER";
             case MGTT_State::UNDEFINED: return "UNDEFINED";
@@ -274,6 +274,7 @@ private:
     std::unordered_map<MGTT_State, StateFunction> stateFunctions;
     int frame = 0;
 
+    // Memory Trackers
     std::unique_ptr<MemoryTracker<u8, 2, decltype(criteria_0), decltype(criteria_1)>> rIsGolfRound;
     std::unique_ptr<MemoryTracker<u32, 1>> rPlayerPorts; //Array of bytes
     std::unique_ptr<MemoryTracker<u8, 1>> rPlayerTurn;
@@ -339,10 +340,13 @@ private:
     const std::vector<uint32_t> sizes = {NUM_PLAYERS, NUM_HOLES};
     const std::vector<uint32_t> offsets = {PLAYER_OFFSET, HOLE_OFFSET};
 
+    // JSON Info
     std::unique_ptr<json> writer;
+    std::unordered_map<std::string, json> holes; //Needs map to preserve data across entire round
+    std::unordered_map<std::string, std::unordered_map<std::string, json>> shots; //Needs map to preserve data across entire round
 
     void initWriter(std::string filename) {
-        std::string outputFilename = fmt::format("{}{}.json", File::GetUserPath(D_MSSBFILES_IDX), filename);
+        std::string outputFilename = fmt::format("{}{}.json", File::GetUserPath(D_MGTTFILES_IDX), filename);
         std::cout << "JSON File Loc=" << outputFilename << "\n";
         writer = std::make_unique<json>();
         (*writer)["filename"] = outputFilename;
@@ -365,13 +369,40 @@ private:
         }
     }
 
+    template<typename T>
+    std::string getHoleName(T holeNumber, T holeIndex = 0){
+        return fmt::format("H{}_{}", holeNumber, holeIndex);
+    }
+
+    template<typename T, typename U>
+    std::string getShotName(T playerNum, U shotNum){
+        return fmt::format("S{}_{}", playerNum, shotNum);
+    }
+
+    void assembleFinalJson(std::unique_ptr<json>& writerRef) {
+        json holesJson;
+
+        for (const auto& holePair : holes) {
+            const std::string& holeName = holePair.first;
+            const json& holeData = holePair.second;
+
+            json hole = holeData;
+            hole["Shots"] = shots[holeName];
+
+            holesJson[holeName] = hole;
+        }
+
+        (*writerRef)["Holes"] = holesJson;
+    }
+
+    // Netplay, TagSet, Meta data
     struct RioInfo {
         std::map<int, LocalPlayers::LocalPlayers::Player> rioUsers;
         std::optional<std::pair<int, std::string>> tag_set_id_name;
         bool netplay;
     } rioInfo;
 
-    // MGTT_State methods
+    // State Machine
     void initState(const Core::CPUThreadGuard& guard) {
         // std::cout << "running INIT MGTT_State." << std::endl;
         // Transition logic for INIT MGTT_State
@@ -401,7 +432,7 @@ private:
             rIrons->run(guard);
             rWedges->run(guard);
 
-            if (rPlayerCount->isActive() && rGameMode->isActive()) { 
+            if (rPlayerCount->isActive() && rGameMode->isActive()) {
                 u32 gameId = RioUtil::genRand32();
                 initWriter(std::to_string(gameId));
                 std::cout << "RoundInfo | GameID=" <<  std::to_string(gameId) << "\n";
@@ -474,57 +505,11 @@ private:
 
         rIsGolfRound->run(guard);
         if (rIsGolfRound->isActive() && rGameMode->isActive()) {
-            rCurrentHole->run(guard);
-            rWindRads->run(guard);
-            rWindSpeed->run(guard);
-            rRainBool->run(guard);
-            rPin->run(guard);
-            rPin2->run(guard);
-
-            std::cout << "  HoleInfo | CurrentHole=" << std::to_string(*rCurrentHole->getValue()) << "\n";
-            std::cout << "  HoleInfo | WindRads=" << std::to_string(*rWindRads->getValue()) << "\n";
-            std::cout << "  HoleInfo | WindSpeed=" << std::to_string(*rWindSpeed->getValue()) << "\n";
-            std::cout << "  HoleInfo | RainBool=" << std::to_string(*rRainBool->getValue()) << "\n";
-            std::cout << "  HoleInfo | Pin=" << std::to_string(*rPin->getValue()) << "\n";
-            std::cout << "  HoleInfo | Pin2=" << std::to_string(*rPin2->getValue()) << "\n";
-
-            (*writer)["CurrentHole"] = *rCurrentHole->getValue();
-            (*writer)["HoleIndex"] = "???";
-            (*writer)["WindRads"] = *rWindRads->getValue();
-            (*writer)["WindSpeed"] = *rWindSpeed->getValue();
-            (*writer)["RainBool"] = *rRainBool->getValue();
-            (*writer)["Pin"] = *rPin->getValue();
-            (*writer)["Pin2"] = *rPin2->getValue();
-            
-            transitionTo(MGTT_State::TRANSITION);
+            transitionTo(MGTT_State::HOLE_INFO);
         }
     }
 
-    // void waitingForRoundStartState(const Core::CPUThreadGuard& guard) {
-
-    //     rIsGolfRound->run(guard);
-    //     if (rIsGolfRound->isActive()) {
-    //         transitionTo(MGTT_State::TRANSITION);
-
-    //         rCurrentHole->run(guard);
-    //         rWindRads->run(guard);
-    //         rWindSpeed->run(guard);
-    //         rRainBool->run(guard);
-    //         rPin->run(guard);
-    //         rPin2->run(guard);
-    //         std::cout << "  HoleInfo | CurrentHole=" << std::to_string(*rCurrentHole->getValue()) << "\n";
-    //         std::cout << "  HoleInfo | WindRads=" << std::to_string(*rWindRads->getValue()) << "\n";
-    //         std::cout << "  HoleInfo | WindSpeed=" << std::to_string(*rWindSpeed->getValue()) << "\n";
-    //         std::cout << "  HoleInfo | RainBool=" << std::to_string(*rRainBool->getValue()) << "\n";
-    //         std::cout << "  HoleInfo | Pin=" << std::to_string(*rPin->getValue()) << "\n";
-    //         std::cout << "  HoleInfo | Pin2=" << std::to_string(*rPin2->getValue()) << "\n";
-    //     }
-    // }
-
-    void transitionState(const Core::CPUThreadGuard& guard) {
-        // Transition logic for ROUND_INFO MGTT_State
-
-        // Check for new hole
+    void holeInfoState(const Core::CPUThreadGuard& guard) {
         rCurrentHole->run(guard);
         rWindRads->run(guard);
         rWindSpeed->run(guard);
@@ -532,28 +517,36 @@ private:
         rPin->run(guard);
         rPin2->run(guard);
 
-        rShotPhase->run(guard);
-        // std::cout << "H " << std::to_string(*rCurrentHole->getValue()) << "-" << std::to_string(*rCurrentHole->getValue(1)) << " T\n";
-        // std::cout << "H " << std::to_string(*rShotPhase->getValue()) << "-" << std::to_string(*rShotPhase->getValue(1)) << " T\n";
+        std::cout << "  HoleInfo | CurrentHole=" << std::to_string(*rCurrentHole->getValue()) << "\n";
+        std::cout << "  HoleInfo | WindRads=" << std::to_string(*rWindRads->getValue()) << "\n";
+        std::cout << "  HoleInfo | WindSpeed=" << std::to_string(*rWindSpeed->getValue()) << "\n";
+        std::cout << "  HoleInfo | RainBool=" << std::to_string(*rRainBool->getValue()) << "\n";
+        std::cout << "  HoleInfo | Pin=" << std::to_string(*rPin->getValue()) << "\n";
+        std::cout << "  HoleInfo | Pin2=" << std::to_string(*rPin2->getValue()) << "\n";
 
+        std::string holeName = getHoleName(*rCurrentHole->getValue());
+        json hole;
+        hole["CurrentHole"] = *rCurrentHole->getValue();
+        hole["HoleIndex"] = "???";
+        hole["WindRads"] = *rWindRads->getValue();
+        hole["WindSpeed"] = *rWindSpeed->getValue();
+        hole["RainBool"] = *rRainBool->getValue();
+        hole["Pin"] = *rPin->getValue();
+        hole["Pin2"] = *rPin2->getValue();
+
+        holes[holeName] = hole;
+        transitionTo(MGTT_State::TRANSITION);
+    }
+
+    void transitionState(const Core::CPUThreadGuard& guard) {
+        // Check for new hole
+        rCurrentHole->run(guard);
         if (rCurrentHole->isActive()){
-            std::cout << "  HoleInfo | CurrentHole=" << std::to_string(*rCurrentHole->getValue()) << "\n";
-            std::cout << "  HoleInfo | WindRads=" << std::to_string(*rWindRads->getValue()) << "\n";
-            std::cout << "  HoleInfo | WindSpeed=" << std::to_string(*rWindSpeed->getValue()) << "\n";
-            std::cout << "  HoleInfo | RainBool=" << std::to_string(*rRainBool->getValue()) << "\n";
-            std::cout << "  HoleInfo | Pin=" << std::to_string(*rPin->getValue()) << "\n";
-            std::cout << "  HoleInfo | Pin2=" << std::to_string(*rPin2->getValue()) << "\n";
-
-
-            (*writer)["CurrentHole"] = *rCurrentHole->getValue();
-            (*writer)["HoleIndex"] = "???";
-            (*writer)["WindRads"] = *rWindRads->getValue();
-            (*writer)["WindSpeed"] = *rWindSpeed->getValue();
-            (*writer)["RainBool"] = *rRainBool->getValue();
-            (*writer)["Pin"] = *rPin->getValue();
-            (*writer)["Pin2"] = *rPin2->getValue();
+            transitionTo(MGTT_State::HOLE_INFO);
         }
 
+        // Check for swing
+        rShotPhase->run(guard);
         rPlayerTurn->run(guard);
         auto player_turn = rPlayerTurn->getValue();
         // Check for swing start
@@ -561,10 +554,9 @@ private:
             //Is Golfer ready to swing?
             if (rShotPhase->isActive()){
                 std::cout << "Golfer P" << std::to_string(*player_turn) << " Started Swing\n";
-                transitionTo(MGTT_State::PRESWING);
+                transitionTo(MGTT_State::SWING);
             }
         }
-
 
         // Check if game is over
         rIsGolfRound->run(guard);
@@ -573,15 +565,22 @@ private:
         }
     }
 
-    void preswingState(const Core::CPUThreadGuard& guard) {
+    void swingState(const Core::CPUThreadGuard& guard) {
         rPlayerTurn->run(guard);
 
         auto player_turn = rPlayerTurn->getValue();
 
         if (player_turn && (*player_turn <= 3)) {
             (*rPlayerShotStatus_swing)[*player_turn].run(guard);
+            
+            
             // Has golfer swung?
             if ((*rPlayerShotStatus_swing)[*player_turn].isActive()){
+                // Build Bookkeepping Vars
+                auto player_shot_num = (*rPlayerShotNum)[*player_turn].getValue();
+                std::string shotName = getShotName(*player_turn, *player_shot_num);
+                std::string holeName = getHoleName(*rCurrentHole->getValue());
+                
                 std::cout << "Golfer P" << std::to_string(*player_turn) << " Swing Committed\n";
 
                 //Collect swing info
@@ -603,6 +602,7 @@ private:
                 rImpactPoint_Y->run(guard);
                 rSpin->run(guard);
                 
+                std::cout << "  ShotInfo | ShotNum=" << std::to_string(*(*rPlayerShotNum)[*player_turn].getValue()) << "\n";
                 std::cout << "  ShotInfo | ShotInfo=" << std::to_string(*rShotType->getValue()) << "\n";
                 std::cout << "  ShotInfo | ClubType=" << std::to_string(*rClubType->getValue()) << "\n";
                 std::cout << "  ShotInfo | PowerMeterSetting=" << std::to_string(*rPowerMeterSetting->getValue()) << "\n";
@@ -620,44 +620,32 @@ private:
                 std::cout << "  ShotInfo | ImpactPoint_Y=" << std::to_string(*rImpactPoint_Y->getValue()) << "\n";
                 std::cout << "  ShotInfo | Spin=" << std::to_string(*rSpin->getValue()) << "\n";
 
-                (*writer)["ShotInfo"] = *rShotType->getValue();
-                (*writer)["ClubType"] = *rClubType->getValue();
-                (*writer)["PowerMeterSetting"] = *rPowerMeterSetting->getValue();
-                (*writer)["PowerMeterSettingCopy"] = *rPowerMeterSettingCopy->getValue();
-                (*writer)["PowerMeterMaximum"] = *rPowerMeterMaximum->getValue();
-                (*writer)["PowerMeterActual"] = *rPowerMeterActual->getValue();
-                (*writer)["PowerMeterActualCopy"] = *rPowerMeterActualCopy->getValue();
-                (*writer)["ShotAccuracy"] = *rShotAccuracy->getValue();
-                (*writer)["ShotAccuracy2"] = *rShotAccuracy2->getValue();
-                (*writer)["ManualVsAuto"] = *rManualVsAuto->getValue();
-                (*writer)["AimAngleRadians"] = *rAimAngleRadians->getValue();
-                (*writer)["ImpactPoint_Y_Preshot"] = *rImpactPoint_Y_Preshot->getValue();
-                (*writer)["ImpactPoint_X_Preshot"] = *rImpactPoint_X_Preshot->getValue();
-                (*writer)["ImpactPoint_X"] = *rImpactPoint_X->getValue();
-                (*writer)["ImpactPoint_Y"] = *rImpactPoint_Y->getValue();
-                (*writer)["Spin"] = *rSpin->getValue();
+                json shot;
+                shot["ShotInfo"] = *rShotType->getValue();
+                shot["ClubType"] = *rClubType->getValue();
+                shot["PowerMeterSetting"] = *rPowerMeterSetting->getValue();
+                shot["PowerMeterSettingCopy"] = *rPowerMeterSettingCopy->getValue();
+                shot["PowerMeterMaximum"] = *rPowerMeterMaximum->getValue();
+                shot["PowerMeterActual"] = *rPowerMeterActual->getValue();
+                shot["PowerMeterActualCopy"] = *rPowerMeterActualCopy->getValue();
+                shot["ShotAccuracy"] = *rShotAccuracy->getValue();
+                shot["ShotAccuracy2"] = *rShotAccuracy2->getValue();
+                shot["ManualVsAuto"] = *rManualVsAuto->getValue();
+                shot["AimAngleRadians"] = *rAimAngleRadians->getValue();
+                shot["ImpactPoint_Y_Preshot"] = *rImpactPoint_Y_Preshot->getValue();
+                shot["ImpactPoint_X_Preshot"] = *rImpactPoint_X_Preshot->getValue();
+                shot["ImpactPoint_X"] = *rImpactPoint_X->getValue();
+                shot["ImpactPoint_Y"] = *rImpactPoint_Y->getValue();
+                shot["Spin"] = *rSpin->getValue();
 
-                transitionTo(MGTT_State::POSTSWING);
+                shots[holeName][shotName] = shot;
             }
-        }
+            else if ((*rPlayerShotStatus_postswing)[*player_turn].isActive()){ //Post Swing
+                // Build Bookkeepping Vars
+                auto player_shot_num = (*rPlayerShotNum)[*player_turn].getValue();
+                std::string shotName = getShotName(*player_turn, *player_shot_num);
+                std::string holeName = getHoleName(*rCurrentHole->getValue());
 
-
-        // Check if game is over
-        rIsGolfRound->run(guard);
-        if (*rIsGolfRound->getValue() == 0) {
-            transitionTo(MGTT_State::ROUND_OVER);
-        }
-    }
-
-    void postswingState(const Core::CPUThreadGuard& guard) {
-        rPlayerTurn->run(guard);
-
-        auto player_turn = rPlayerTurn->getValue();
-
-        if (player_turn && (*player_turn <= 3)) {
-            (*rPlayerShotStatus_postswing)[*player_turn].run(guard);
-            
-            if ((*rPlayerShotStatus_postswing)[*player_turn].isActive()){
                 std::cout << "Golfer P" << std::to_string(*player_turn) << " Swing Done\n";
                 
                 //Collect lie/result info
@@ -683,25 +671,37 @@ private:
                 std::cout << "  Shot Result | LieRngSeed=" << std::to_string(*rLieRngSeed->getValue()) << "\n";
                 std::cout << "  Shot Result | rShotDistance=" << std::to_string(*rShotDistance->getValue()) << "\n";
 
-                (*writer)["BallPos_X"] = *rBallPos_X->getValue();
-                (*writer)["BallPos_Y"] = *rBallPos_Y->getValue();
-                (*writer)["BallPos_Z"] = *rBallPos_Z->getValue();
-                (*writer)["DistanceToHole"] = *rDistanceToHole->getValue();
-                (*writer)["LieType"] = *rLieType->getValue();
-                (*writer)["LieQuality"] = *rLieQuality->getValue();
-                (*writer)["LieRngRange"] = *rLieRngRange->getValue();
-                (*writer)["LieRng"] = *rLieRng->getValue();
-                (*writer)["LieRngSeed"] = *rLieRngSeed->getValue();
-                (*writer)["rShotDistance"] = *rShotDistance->getValue();
-                transitionTo(MGTT_State::TRANSITION);
+                json& shot = shots[holeName][shotName];
+                shot["BallPos_X"] = *rBallPos_X->getValue();
+                shot["BallPos_Y"] = *rBallPos_Y->getValue();
+                shot["BallPos_Z"] = *rBallPos_Z->getValue();
+                shot["DistanceToHole"] = *rDistanceToHole->getValue();
+                shot["LieType"] = *rLieType->getValue();
+                shot["LieQuality"] = *rLieQuality->getValue();
+                shot["LieRngRange"] = *rLieRngRange->getValue();
+                shot["LieRng"] = *rLieRng->getValue();
+                shot["LieRngSeed"] = *rLieRngSeed->getValue();
+                shot["rShotDistance"] = *rShotDistance->getValue();
+
+                transitionTo(MGTT_State::ROUND_OVER);
             }
         }
+
+        // Check if game is over
+        rIsGolfRound->run(guard);
+        if (*rIsGolfRound->getValue() == 0) {
+            transitionTo(MGTT_State::ROUND_OVER);
+        }
     }
+
+    
     void undefinedState(const Core::CPUThreadGuard& guard) {
 
     }
 
     void roundOverState(const Core::CPUThreadGuard& guard) {
+        // Piece together hole and shot maps
+        assembleFinalJson(writer);
 
         // Write the JSON file
         writeJSON();
