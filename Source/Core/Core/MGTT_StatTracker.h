@@ -11,6 +11,7 @@
 #include <picojson.h>
 #include <utility>
 #include <type_traits>
+#include <ctime>
 #include "Core/HW/Memmap.h"
 
 #include "Common/HttpRequest.h"
@@ -47,6 +48,7 @@ enum class MGTT_State
   SWING,       //Wait for swing to start and Collect Lie and such
   TRANSITION,     //Wait for next swing - inbetween holes or something
   ROUND_OVER,
+  RESET,
   UNDEFINED
 };
 
@@ -63,8 +65,15 @@ constexpr auto criteria_0 = std::make_pair(0, eq(1));
 static const u32 aPlayerPorts = 0x804E6674;
 static const u32 aPlayerTurn = 0x804E68FB; 
 
-// Round Addrs
+//0x1=CharSel, 0x2=GameModeSel, 0x3=RoundFormat, 0x4=Handicap. Doubles adds additional scenes as well
+static const u32 aMenuScene = 0x8044CDAF;
+constexpr auto return_to_menu_1 = std::make_pair(1, eq(0x18));
+constexpr auto return_to_menu_0 = std::make_pair(0, not_(eq(0x18)));
 
+constexpr auto start_of_round_1 = std::make_pair(1, not_(eq(0x18)));
+constexpr auto start_of_round_0 = std::make_pair(0, eq(0x18));
+
+// Round Addrs
 static const u32 aGameMode = 0x804E6753;
 //Only run tracker for game modes 0,1,2 (Stroke play, match play, skins)
 constexpr auto game_mode_criteria_0 = std::make_pair(0, or_(or_(eq(0), eq(1)), eq(2)));
@@ -104,10 +113,12 @@ static const u32 aIronsMenu_P1 = aIronsMenu_P1;
 static const u32 aWedgesMenu_P1 = 0x8017602E;
 
 // Hole Addrs
-static const u32 aCurrentHole = 0x804E674B;
+static const u32 aHoleNum = 0x804E674B;
 constexpr auto prev_hole = std::make_pair(1, lt(19));
 constexpr auto curr_hole = std::make_pair(0, neq_stage<u8>(1));
 
+static const u32 aHoleIndex = 0x804E68F8;
+static const u32 aPar = 0x804E685C;
 static const u32 aWindRads = 0x804E6850;
 static const u32 aWindSpeed = 0x804E6854;
 static const u32 aRainBool = 0x804E6858;
@@ -186,10 +197,9 @@ public:
         stateFunctions[MGTT_State::TRANSITION] = [this](const Core::CPUThreadGuard& guard) { this->transitionState(guard); };
         stateFunctions[MGTT_State::SWING] = [this](const Core::CPUThreadGuard& guard) { this->swingState(guard); };
         stateFunctions[MGTT_State::ROUND_OVER] = [this](const Core::CPUThreadGuard& guard) { this->roundOverState(guard); };
+        stateFunctions[MGTT_State::RESET] = [this](const Core::CPUThreadGuard& guard) { this->resetState(guard); };
         stateFunctions[MGTT_State::UNDEFINED] = [this](const Core::CPUThreadGuard& guard) { this->undefinedState(guard); };
         std::cout << "Init MGTT_StatTracker" << std::endl;
-
-        initMemoryTrackers();
     }
 
     void initMemoryTrackers();
@@ -279,6 +289,7 @@ private:
     std::unique_ptr<MemoryTracker<u32, 1>> rPlayerPorts; //Array of bytes
     std::unique_ptr<MemoryTracker<u8, 1>> rPlayerTurn;
     std::unique_ptr<MemoryTracker<u8, 16, decltype(game_mode_criteria_0)>> rGameMode;
+    std::unique_ptr<MemoryTracker<u8, 16, decltype(return_to_menu_1), decltype(return_to_menu_0)>> rMenuScene;
     std::unique_ptr<MemoryTracker<u8, 16>> rCourseId;
     std::unique_ptr<MemoryTracker<u8, 16, decltype(round_format_criteria_0), decltype(round_format_criteria_1)>> rRoundFormat;
     std::unique_ptr<MemoryTracker<u8, 16>> rGreenType;
@@ -296,7 +307,9 @@ private:
     std::unique_ptr<MemoryTrackerArray<u8, 1, 4>> rWoods;
     std::unique_ptr<MemoryTrackerArray<u8, 1, 4>> rIrons;
     std::unique_ptr<MemoryTrackerArray<u8, 1, 4>> rWedges;
-    std::unique_ptr<MemoryTracker<u8, 2, decltype(prev_hole), decltype(curr_hole)>> rCurrentHole;
+    std::unique_ptr<MemoryTracker<u8, 2, decltype(prev_hole), decltype(curr_hole)>> rHoleNum;
+    std::unique_ptr<MemoryTracker<u8, 2, decltype(prev_hole), decltype(curr_hole)>> rHoleIndex;
+    std::unique_ptr<MemoryTracker<u8, 1>> rPar;
     std::unique_ptr<MemoryTracker<float, 1>> rWindRads;
     std::unique_ptr<MemoryTracker<float, 1>> rWindSpeed;
     std::unique_ptr<MemoryTracker<u8, 1>> rRainBool;
@@ -306,7 +319,7 @@ private:
     std::unique_ptr<MemoryTrackerArray<u32, 2, 4, decltype(pss_preswing_criteria_0), decltype(pss_preswing_criteria_1)>> rPlayerShotStatus_preswing;
     std::unique_ptr<MemoryTrackerArray<u32, 2, 4, decltype(pss_swing_criteria_0), decltype(pss_swing_criteria_1)>> rPlayerShotStatus_swing;
     std::unique_ptr<MemoryTrackerArray<u32, 2, 4, decltype(pss_postswing_criteria_0), decltype(pss_postswing_criteria_1)>> rPlayerShotStatus_postswing;
-    std::unique_ptr<MemoryTrackerArray<u32, 1, 4>> rPlayerShotNum;
+    std::unique_ptr<MemoryTrackerArray<u8, 1, 4>> rPlayerShotNum;
     std::unique_ptr<MemoryTracker<u32, 1>> rShotType;
     std::unique_ptr<MemoryTracker<u32, 1>> rClubType;
     std::unique_ptr<MemoryTracker<u32, 1>> rPowerMeterSetting;
@@ -342,18 +355,25 @@ private:
 
     // JSON Info
     std::unique_ptr<json> writer;
-    std::unordered_map<std::string, json> holes; //Needs map to preserve data across entire round
-    std::unordered_map<std::string, std::unordered_map<std::string, json>> shots; //Needs map to preserve data across entire round
+    std::unique_ptr<std::unordered_map<std::string, json>> holes; //Needs map to preserve data across entire round
+    std::unique_ptr<std::unordered_map<std::string, std::unordered_map<std::string, json>>> shots; //Needs map to preserve data across entire round
+    std::unique_ptr<json> summary;
 
     void initWriter(std::string filename) {
         std::string outputFilename = fmt::format("{}{}.json", File::GetUserPath(D_MGTTFILES_IDX), filename);
         std::cout << "JSON File Loc=" << outputFilename << "\n";
         writer = std::make_unique<json>();
+        holes = std::make_unique<std::unordered_map<std::string, json>>();
+        shots = std::make_unique<std::unordered_map<std::string, std::unordered_map<std::string, json>>>();
+        summary = std::make_unique<json>();
         (*writer)["filename"] = outputFilename;
     }
 
     void resetWriter() {
         writer.reset();
+        holes.reset();
+        shots.reset();
+        summary.reset();
     }
 
     void writeJSON() {
@@ -382,30 +402,30 @@ private:
     void assembleFinalJson(std::unique_ptr<json>& writerRef) {
         json holesJson;
 
-        for (const auto& holePair : holes) {
+        for (const auto& holePair : (*holes)) {
             const std::string& holeName = holePair.first;
             const json& holeData = holePair.second;
 
             json hole = holeData;
-            hole["Shots"] = shots[holeName];
+            hole["Shots"] = (*shots)[holeName];
 
             holesJson[holeName] = hole;
         }
 
         (*writerRef)["Holes"] = holesJson;
+        (*writerRef)["Summary"] = (*summary);
     }
 
     // Netplay, TagSet, Meta data
     struct RioInfo {
         std::map<int, LocalPlayers::LocalPlayers::Player> rioUsers;
         std::optional<std::pair<int, std::string>> tag_set_id_name;
-        bool netplay;
+        bool netplay = false;
     } rioInfo;
 
     // State Machine
     void initState(const Core::CPUThreadGuard& guard) {
-        // std::cout << "running INIT MGTT_State." << std::endl;
-        // Transition logic for INIT MGTT_State
+        initMemoryTrackers();
         transitionTo(MGTT_State::MENU);
     }
 
@@ -435,7 +455,12 @@ private:
             if (rPlayerCount->isActive() && rGameMode->isActive()) {
                 u32 gameId = RioUtil::genRand32();
                 initWriter(std::to_string(gameId));
+
+                //Read start time
+                std::time_t unix_time = std::time(nullptr);
+                // std::asctime(std::localtime(&unix_time));
                 std::cout << "RoundInfo | GameID=" <<  std::to_string(gameId) << "\n";
+                std::cout << "RoundInfo | Start time=" <<  std::asctime(std::localtime(&unix_time)) << "\n";
                 std::cout << "RoundInfo | TagSetID=" << (rioInfo.tag_set_id_name.has_value() ? std::to_string((*rioInfo.tag_set_id_name).first) : "null") << "\n";
                 std::cout << "RoundInfo | TagSet=" << (rioInfo.tag_set_id_name.has_value() ? (*rioInfo.tag_set_id_name).second : "null") << "\n";
                 std::cout << "RoundInfo | GameMode=" <<  std::to_string(*rGameMode->getValue(14)) << "\n";
@@ -445,6 +470,7 @@ private:
                 std::cout << "RoundInfo | Tees=" << std::to_string(*rTees->getValue(14)) << "\n";
                 std::cout << "RoundInfo | PlayerCount=" << std::to_string(*rPlayerCount->getValue()) << "\n";
                 (*writer)["GameId"] = gameId;
+                (*writer)["StartTime"] = std::asctime(std::localtime(&unix_time));
                 (*writer)["TagSetID"] = rioInfo.tag_set_id_name.has_value() ? std::to_string((*rioInfo.tag_set_id_name).first) : "null";
                 (*writer)["TagSet"] = rioInfo.tag_set_id_name.has_value() ? (*rioInfo.tag_set_id_name).second : "null";
                 (*writer)["GameMode"] = *rGameMode->getValue(14);
@@ -470,7 +496,7 @@ private:
                     std::cout << "P" << std::to_string(i) << " Port=" << std::to_string(*player_port) << "\n";
                     std::cout << "RoundInfo | Player=" << std::to_string(i) << "\n";
                     std::cout << "RoundInfo | Port=" << std::to_string(*player_port) << "\n";
-                    std::cout << "RoundInfo | RioUsername=" << rioInfo.rioUsers[*player_port].GetUsername() << "\n";
+                    std::cout << "RoundInfo | RioUsername=" << rioInfo.rioUsers[*player_port+1].GetUsername() << "\n";
 
                     std::cout << "RoundInfo | HandicapsEnabled=" << std::to_string(*(*rHandicapsEnabled)[i].getValue(14)) << "\n";
                     std::cout << "RoundInfo | SimulationLine=" << std::to_string(*(*rSimulationLine)[i].getValue(14)) << "\n";
@@ -484,7 +510,7 @@ private:
                     std::cout << "RoundInfo | Wedges=" << std::to_string(*(*rWedges)[i].getValue()) << "\n";
                     
                     golfer["Port"] = *player_port;
-                    golfer["RioUsername"] = rioInfo.rioUsers[*player_port].GetUsername();
+                    golfer["RioUsername"] = rioInfo.rioUsers[*player_port+1].GetUsername();
 
                     golfer["HandicapsEnabled"] = (*(*rHandicapsEnabled)[i].getValue(14));
                     golfer["SimulationLine"] = (*(*rSimulationLine)[i].getValue(14));
@@ -510,38 +536,42 @@ private:
     }
 
     void holeInfoState(const Core::CPUThreadGuard& guard) {
-        rCurrentHole->run(guard);
+        rHoleNum->run(guard);
+        rHoleIndex->run(guard);
         rWindRads->run(guard);
         rWindSpeed->run(guard);
         rRainBool->run(guard);
         rPin->run(guard);
         rPin2->run(guard);
 
-        std::cout << "  HoleInfo | CurrentHole=" << std::to_string(*rCurrentHole->getValue()) << "\n";
+        std::cout << "  HoleInfo | CurrentHole=" << std::to_string(*rHoleNum->getValue()) << "\n";
+        std::cout << "  HoleInfo | CurrentHole=" << std::to_string(*rHoleIndex->getValue()) << "\n";
+        std::cout << "  HoleInfo | Par=" << std::to_string(*rWindRads->getValue()) << "\n";
         std::cout << "  HoleInfo | WindRads=" << std::to_string(*rWindRads->getValue()) << "\n";
         std::cout << "  HoleInfo | WindSpeed=" << std::to_string(*rWindSpeed->getValue()) << "\n";
         std::cout << "  HoleInfo | RainBool=" << std::to_string(*rRainBool->getValue()) << "\n";
         std::cout << "  HoleInfo | Pin=" << std::to_string(*rPin->getValue()) << "\n";
         std::cout << "  HoleInfo | Pin2=" << std::to_string(*rPin2->getValue()) << "\n";
 
-        std::string holeName = getHoleName(*rCurrentHole->getValue());
+        std::string holeName = getHoleName(*rHoleNum->getValue(), *rHoleIndex->getValue());
         json hole;
-        hole["CurrentHole"] = *rCurrentHole->getValue();
-        hole["HoleIndex"] = "???";
+        hole["HoleNum"] = *rHoleNum->getValue();
+        hole["HoleIndex"] = *rHoleIndex->getValue();
+        hole["Par"] = *rPar->getValue();
         hole["WindRads"] = *rWindRads->getValue();
         hole["WindSpeed"] = *rWindSpeed->getValue();
         hole["RainBool"] = *rRainBool->getValue();
         hole["Pin"] = *rPin->getValue();
         hole["Pin2"] = *rPin2->getValue();
 
-        holes[holeName] = hole;
+        (*holes)[holeName] = hole;
         transitionTo(MGTT_State::TRANSITION);
     }
 
     void transitionState(const Core::CPUThreadGuard& guard) {
         // Check for new hole
-        rCurrentHole->run(guard);
-        if (rCurrentHole->isActive()){
+        rHoleNum->run(guard);
+        if (rHoleNum->isActive()){
             transitionTo(MGTT_State::HOLE_INFO);
         }
 
@@ -559,8 +589,8 @@ private:
         }
 
         // Check if game is over
-        rIsGolfRound->run(guard);
-        if (*rIsGolfRound->getValue() == 0) {
+        rMenuScene->run(guard);
+        if (rMenuScene->isActive()) {
             transitionTo(MGTT_State::ROUND_OVER);
         }
     }
@@ -577,14 +607,14 @@ private:
             // Has golfer swung?
             if ((*rPlayerShotStatus_swing)[*player_turn].isActive()){
                 // Build Bookkeepping Vars
+                rPlayerShotNum->run(guard);
                 auto player_shot_num = (*rPlayerShotNum)[*player_turn].getValue();
                 std::string shotName = getShotName(*player_turn, *player_shot_num);
-                std::string holeName = getHoleName(*rCurrentHole->getValue());
+                std::string holeName = getHoleName(*rHoleNum->getValue(), *rHoleIndex->getValue());
                 
                 std::cout << "Golfer P" << std::to_string(*player_turn) << " Swing Committed\n";
 
                 //Collect swing info
-                rPlayerShotNum->run(guard);
                 rShotType->run(guard);
                 rClubType->run(guard);
                 rPowerMeterSetting->run(guard);
@@ -621,7 +651,8 @@ private:
                 std::cout << "  ShotInfo | Spin=" << std::to_string(*rSpin->getValue()) << "\n";
 
                 json shot;
-                shot["ShotInfo"] = *rShotType->getValue();
+                shot["ShotNum"] = *player_shot_num;
+                shot["ShotType"] = *rShotType->getValue();
                 shot["ClubType"] = *rClubType->getValue();
                 shot["PowerMeterSetting"] = *rPowerMeterSetting->getValue();
                 shot["PowerMeterSettingCopy"] = *rPowerMeterSettingCopy->getValue();
@@ -638,13 +669,13 @@ private:
                 shot["ImpactPoint_Y"] = *rImpactPoint_Y->getValue();
                 shot["Spin"] = *rSpin->getValue();
 
-                shots[holeName][shotName] = shot;
+                (*shots)[holeName][shotName] = shot;
             }
             else if ((*rPlayerShotStatus_postswing)[*player_turn].isActive()){ //Post Swing
                 // Build Bookkeepping Vars
                 auto player_shot_num = (*rPlayerShotNum)[*player_turn].getValue();
                 std::string shotName = getShotName(*player_turn, *player_shot_num);
-                std::string holeName = getHoleName(*rCurrentHole->getValue());
+                std::string holeName = getHoleName(*rHoleNum->getValue(), *rHoleIndex->getValue());
 
                 std::cout << "Golfer P" << std::to_string(*player_turn) << " Swing Done\n";
                 
@@ -671,7 +702,7 @@ private:
                 std::cout << "  Shot Result | LieRngSeed=" << std::to_string(*rLieRngSeed->getValue()) << "\n";
                 std::cout << "  Shot Result | rShotDistance=" << std::to_string(*rShotDistance->getValue()) << "\n";
 
-                json& shot = shots[holeName][shotName];
+                json& shot = (*shots)[holeName][shotName];
                 shot["BallPos_X"] = *rBallPos_X->getValue();
                 shot["BallPos_Y"] = *rBallPos_Y->getValue();
                 shot["BallPos_Z"] = *rBallPos_Z->getValue();
@@ -683,13 +714,13 @@ private:
                 shot["LieRngSeed"] = *rLieRngSeed->getValue();
                 shot["rShotDistance"] = *rShotDistance->getValue();
 
-                transitionTo(MGTT_State::ROUND_OVER);
+                transitionTo(MGTT_State::TRANSITION);
             }
         }
 
         // Check if game is over
-        rIsGolfRound->run(guard);
-        if (*rIsGolfRound->getValue() == 0) {
+        rMenuScene->run(guard);
+        if (rMenuScene->isActive()) {
             transitionTo(MGTT_State::ROUND_OVER);
         }
     }
@@ -700,169 +731,50 @@ private:
     }
 
     void roundOverState(const Core::CPUThreadGuard& guard) {
+        std::time_t unix_time = std::time(nullptr);
+        (*writer)["EndTime"] = std::asctime(std::localtime(&unix_time));
+
+
+        
+        //TODO write these to file as well
+        rFinalScoreHoleTotal->run(guard);
+        rFinalScoreHolePutts->run(guard);
+        rFinalScoreHoleStrokes->run(guard);
+
+        for (u32 player = 0; player < *rPlayerCount->getValue(); ++player) {
+            json playerSummary;
+            std::string playerId = "Player" + std::to_string(player + 1);
+
+            for (u32 hole = 0; hole < *rHoleIndex->getValue(); ++hole) {
+                json holeSummary;
+                std::string holeId = "Hole" + std::to_string(hole + 1);
+
+                auto total_value = rFinalScoreHoleTotal->at({player, hole}).getValue();
+                auto putts_value = rFinalScoreHolePutts->at({player, hole}).getValue();
+                auto strokes_value = rFinalScoreHoleStrokes->at({player, hole}).getValue();
+
+                holeSummary["Score"] = total_value ? std::to_string(*total_value) : "null";
+                holeSummary["Strokes"] = strokes_value ? std::to_string(*strokes_value) : "null";
+                holeSummary["Putts"] = putts_value ? std::to_string(*putts_value) : "null";
+
+                playerSummary[holeId] = holeSummary;
+            }
+
+            (*summary)[playerId] = playerSummary;
+        }
         // Piece together hole and shot maps
         assembleFinalJson(writer);
 
         // Write the JSON file
         writeJSON();
 
+        transitionTo(MGTT_State::RESET);
+    }
+
+    void resetState(const Core::CPUThreadGuard& guard) {
         // Reset the writer
         resetWriter();
-
-        transitionTo(MGTT_State::UNDEFINED);
-        
-        //TODO write these to file as well
-        // rFinalScoreHoleTotal->run(guard);
-        // rFinalScoreHolePutts->run(guard);
-        // rFinalScoreHoleStrokes->run(guard);
-
-        // for (u32 player = 0; player < NUM_PLAYERS; ++player) {
-        //     std::cout << "Player " << player + 1 << ":\n";
-            
-        //     std::cout << "  FinalScores | Player=" << player << "\n";
-        //     for (u32 hole = 0; hole < NUM_HOLES; ++hole) {            
-        //         auto total_value = rFinalScoreHoleTotal.at({player, hole})->getValue();
-        //         auto putts_value = rFinalScoreHolePutts.at({player, hole})->getValue();
-        //         auto strokes_value = rFinalScoreHoleStrokes.at({player, hole})->getValue();
-        //         std::cout << "    FinalScores | Hole=" << hole << "\n";
-        //         std::cout << "      FinalScores | Score=" << (total_value ? std::to_string(*total_value) : "null") << "\n";
-        //         std::cout << "      FinalScores | Strokes=" << (total_value ? std::to_string(*strokes_value) : "null") << "\n";
-        //         std::cout << "      FinalScores | Putts=" << (total_value ? std::to_string(*putts_value) : "null") << "\n";
-        //     }
-        // }
-        // writer->endJSON();
-
-        // // Reset the writer
-        // writer->reset();
-
-    }
-
-    /*
-    void ballInMotionState(const Core::CPUThreadGuard& guard) {
-        // Transition logic for PRESWING MGTT_State
-        // If shot status is 6 (I think) shot details are locked in
-
-        rPlayerTurn->run(guard);
-
-        auto player_turn = rPlayerTurn->getValue();
-
-        if (player_turn && player_turn.value() <= 3) {
-            //Read the player shot status of each player to find the "active" player
-            rPlayerShotStatus[player_turn.value()].run(guard);
-
-            std::cout << "P" << std::to_string(player_turn.value()) << " ShotStatus=" << std::to_string(rPlayerShotStatus[player_turn.value()]->getValue().value()) << "\n";
-
-            //If player is ready to swing, transition to preswing()
-            if (rPlayerShotStatus[player_turn.value()]->getValue().value() == 8) { //Ready to swing
-                transitionTo(MGTT_State::SWING);
-            }
-        }
-
-        // Read lie values
-
-        // Transition
-        transitionTo(MGTT_State::TRANSITION);
-    }
-    */
-
-};
-
-/*
-
-    union
-    {
-        u32 num;
-        float fnum;
-    } float_converter;
-
-    // void setTagSetId(Tag::TagSet tag_set, bool netplay);
-    // void clearTagSetId(bool netplay);
-    // void setNetplaySession(bool netplay_session, std::string opponent_name = "");
-    // void setAvgPing(int avgPing);
-    // void setLagSpikes(int nLagSpikes);
-    // void setNetplayerUserInfo(std::map<int, LocalPlayers::LocalPlayers::Player> userInfo);
-    // void setGameID(u32 gameID);
-    // void setTags(std::vector tags);
-    // void setTagSet(int tagset);
-
-    void Run(const Core::CPUThreadGuard& guard);
-    void lookForTriggerEvents(const Core::CPUThreadGuard& guard);
-
-    void logGameInfo(const Core::CPUThreadGuard& guard);
-
-    //Quit function
-    void onGameQuit(const Core::CPUThreadGuard& guard);
-    bool shouldSubmitGame();
-
-    //Read players from ini file and assign to team
-    void readPlayerNames(bool local_game);
-    //void setDefaultNames(bool local_game);
-
-    float floatConverter(u32 in_value) {
-        float out_float;
-        float_converter.num = in_value;
-        out_float = float_converter.fnum;
-        return out_float;
-    }
-
-    Common::HttpRequest m_http{std::chrono::minutes{3}};
-
-    //The type of value to decode, the value to be decoded, bool for decode if true or original value if false
-    std::string decode(std::string type, u8 value, bool decode);
-
-    //Returns JSON, PathToWriteTo
-    std::string getStatJSON(bool inDecode, bool hide_riokey = true);
-    std::string getEventJSON(u16 in_event_num, Event& in_event, bool inDecode);
-    std::string getHUDJSON(std::string in_event_num, Event& in_curr_event, std::optional<Event> in_prev_event, bool inDecode);
-    //Returns path to save json
-    std::string getStatJsonPath(std::string prefix);
-
-    void postOngoingGame(Event& in_event);
-    void updateOngoingGame(Event& in_event);
-
-    std::pair<u8,u8> getBatterFielderPorts(const Core::CPUThreadGuard& guard){
-        // These values are the actual port numbers
-        // and are indexed into using the below u8s
-        std::array<u8, 2> ports = {PowerPC::MMU::HostRead_U8(guard, 0x800e874c), PowerPC::MMU::HostRead_U8(guard, 0x800e874d)};
-
-        // These registers will always be 0 or 1
-        // and swap values each half inning
-        u32 BattingTeam = PowerPC::MMU::HostRead_U32(guard, 0x80892990);
-        u32 PitchingTeam = PowerPC::MMU::HostRead_U32(guard, 0x80892994);
-        
-        u8 BattingPort = ports[BattingTeam];
-        u8 FieldingPort = ports[PitchingTeam];
-
-        return std::make_pair(BattingPort, FieldingPort);
-    }
-    void initPlayerInfo(const Core::CPUThreadGuard& guard);
-    void initCaptains(const Core::CPUThreadGuard& guard);
-
-    //If mid-game, dump game
-    void dumpGame(const Core::CPUThreadGuard& guard){
-        if (m_game_state == GAME_STATE::INGAME){
-            m_game_info.quitter_team = 2;
-            logGameInfo(guard);
-
-            //Remove current event, wasn't finished
-            auto it = m_game_info.events.find(m_game_info.event_num);
-            if ((&it != NULL) && (it != m_game_info.events.end()))
-            {
-              m_game_info.events.erase(it);
-            }
-
-            //Game has ended. Write file but do not submit
-            std::string jsonPath = getStatJsonPath("crash.decode.");
-            std::string json = getStatJSON(true);
-            
-            File::WriteStringToFile(jsonPath, json);
-
-            jsonPath = getStatJsonPath("crash.");
-            json = getStatJSON(false, true);
-            
-            File::WriteStringToFile(jsonPath, json);
-            init();
-        }
+        resetMemoryTrackers();
+        transitionTo(MGTT_State::INIT);
     }
 };
-*/

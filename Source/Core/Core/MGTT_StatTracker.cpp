@@ -20,7 +20,8 @@ void MGTT_StatTracker::resetMemoryTrackers(){
     rWoods.reset();
     rIrons.reset();
     rWedges.reset();
-    rCurrentHole.reset();
+    rHoleNum.reset();
+    rPar.reset();
     rWindRads.reset();
     rWindSpeed.reset();
     rRainBool.reset();
@@ -69,6 +70,7 @@ void MGTT_StatTracker::initMemoryTrackers(){
     rPlayerPorts = std::make_unique<MemoryTracker<u32, 1>>(aPlayerPorts);
     rPlayerTurn = std::make_unique<MemoryTracker<u8, 1>>(aPlayerTurn);
     rGameMode = std::make_unique<MemoryTracker<u8, 16, decltype(game_mode_criteria_0)>>(aGameMode, game_mode_criteria_0);
+    rMenuScene = std::make_unique<MemoryTracker<u8, 16, decltype(return_to_menu_1), decltype(return_to_menu_0)>>(aMenuScene, return_to_menu_1, return_to_menu_0);
     rCourseId = std::make_unique<MemoryTracker<u8, 16>>(aCourseId);
     rRoundFormat = std::make_unique<MemoryTracker<u8, 16, decltype(round_format_criteria_0), decltype(round_format_criteria_1)>>(aRoundFormat, round_format_criteria_0, round_format_criteria_1);
     rGreenType = std::make_unique<MemoryTracker<u8, 16>>(aGreenType);
@@ -84,7 +86,9 @@ void MGTT_StatTracker::initMemoryTrackers(){
     rWoods = std::make_unique<MemoryTrackerArray<u8, 1, 4>>(aWoodsMenu_P1, 0x4);
     rIrons = std::make_unique<MemoryTrackerArray<u8, 1, 4>>(aIronsMenu_P1, 0x4);
     rWedges = std::make_unique<MemoryTrackerArray<u8, 1, 4>>(aWedgesMenu_P1, 0x4);
-    rCurrentHole = std::make_unique<MemoryTracker<u8, 2, decltype(prev_hole), decltype(curr_hole)>>(aCurrentHole, prev_hole, curr_hole);
+    rHoleNum = std::make_unique<MemoryTracker<u8, 2, decltype(prev_hole), decltype(curr_hole)>>(aHoleNum, prev_hole, curr_hole);
+    rHoleIndex = std::make_unique<MemoryTracker<u8, 2, decltype(prev_hole), decltype(curr_hole)>>(aHoleIndex, prev_hole, curr_hole);
+    rPar = std::make_unique<MemoryTracker<u8, 1>>(aPar);
     rWindRads = std::make_unique<MemoryTracker<float, 1>>(aWindRads);
     rWindSpeed = std::make_unique<MemoryTracker<float, 1>>(aWindSpeed);
     rRainBool = std::make_unique<MemoryTracker<u8, 1>>(aRainBool);
@@ -94,7 +98,7 @@ void MGTT_StatTracker::initMemoryTrackers(){
     rPlayerShotStatus_preswing = std::make_unique<MemoryTrackerArray<u32, 2, 4, decltype(pss_preswing_criteria_0), decltype(pss_preswing_criteria_1)>>(aPlayerShotStatus_P1, 0x5204, pss_preswing_criteria_0, pss_preswing_criteria_1);
     rPlayerShotStatus_swing = std::make_unique<MemoryTrackerArray<u32, 2, 4, decltype(pss_swing_criteria_0), decltype(pss_swing_criteria_1)>>(aPlayerShotStatus_P1, 0x5204, pss_swing_criteria_0, pss_swing_criteria_1);
     rPlayerShotStatus_postswing = std::make_unique<MemoryTrackerArray<u32, 2, 4, decltype(pss_postswing_criteria_0), decltype(pss_postswing_criteria_1)>>(aPlayerShotStatus_P1, 0x5204, pss_postswing_criteria_0, pss_postswing_criteria_1);
-    rPlayerShotNum = std::make_unique<MemoryTrackerArray<u32, 1, 4>>(aShotNum_P1, 0x1c8);
+    rPlayerShotNum = std::make_unique<MemoryTrackerArray<u8, 1, 4>>(aShotNum_P1, 0x1c8);
     rShotType = std::make_unique<MemoryTracker<u32, 1>>(aShotType);
     rClubType = std::make_unique<MemoryTracker<u32, 1>>(aClubType);
     rPowerMeterSetting = std::make_unique<MemoryTracker<u32, 1>>(aPowerMeterSetting);
