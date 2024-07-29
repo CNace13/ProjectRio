@@ -39,7 +39,7 @@ public:
         pipeline.clear();
     }
 
-    u32 get_address() { return address; }
+    u32 getAddress() { return address; }
 
     T read(const Core::CPUThreadGuard& guard) {
         T mem_val;
