@@ -262,7 +262,7 @@ void RunRioFunctions(const Core::CPUThreadGuard& guard)
 
   if (mGameBeingPlayed == GameName::ToadstoolTour)
   {
-    if (s_mgtt_stat_tracker && (Movie::GetCurrentFrame() > 300))
+    if (s_mgtt_stat_tracker && (frame > 300))
     {
       s_mgtt_stat_tracker->run(guard);
     }
