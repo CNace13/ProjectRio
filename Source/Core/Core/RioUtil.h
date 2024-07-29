@@ -7,6 +7,7 @@
 #include <string>
 #include <sstream>
 #include <memory>
+#include <mutex>
 
 namespace RioUtil {
     // Type definition for 32-bit unsigned integer
@@ -31,7 +32,7 @@ namespace RioUtil {
             if (output == LogOutput::FILE || output == LogOutput::BOTH) {
                 fileStream = std::make_unique<std::ofstream>(filename);
                 if (!fileStream->is_open()) {
-                    throw std::runtime_error("Failed to open log file: " + filename);
+                    std::cerr << "Failed to open log file: " + filename;
                 }
             }
         }
