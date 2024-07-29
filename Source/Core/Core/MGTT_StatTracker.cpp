@@ -1,4 +1,37 @@
 #include "Core/MGTT_StatTracker.h"
+#include "Core/NetPlayClient.h"
+
+void MGTT_StatTracker::readLocalPlayers(int num_players, bool netplay){ //TODO - Assumes all human players, each with own port
+    if (netplay){
+        rioInfo.rioUsers = NetPlay::NetPlayClient::getNetplayerUserInfo();
+      return;
+    }
+    
+    for (int i=0; i<num_players; ++i){
+        switch (i)
+        {
+        case 0:
+            rioInfo.rioUsers[i] = LocalPlayers::m_local_player_1;
+            break;
+        case 1:
+            rioInfo.rioUsers[i] = LocalPlayers::m_local_player_2;
+            break;
+        case 2:
+            rioInfo.rioUsers[i] = LocalPlayers::m_local_player_3;
+            break;
+        case 3:
+            rioInfo.rioUsers[i] = LocalPlayers::m_local_player_4;
+            break;
+        default:
+            break;
+        }
+    }
+    logger << fmt::format("readLocalPlayers m_local_player_0, username={}\n", LocalPlayers::m_online_player.GetUsername());
+    logger << fmt::format("readLocalPlayers m_local_player_1, username={}\n", LocalPlayers::m_local_player_1.GetUsername());
+    logger << fmt::format("readLocalPlayers m_local_player_2, username={}\n", LocalPlayers::m_local_player_2.GetUsername());
+    logger << fmt::format("readLocalPlayers m_local_player_3, username={}\n", LocalPlayers::m_local_player_3.GetUsername());
+    logger << fmt::format("readLocalPlayers m_local_player_4, username={}\n", LocalPlayers::m_local_player_4.GetUsername());
+}
 
 void MGTT_StatTracker::resetMemoryTrackers(){
     rIsGolfRound.reset();

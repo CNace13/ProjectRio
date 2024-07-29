@@ -246,38 +246,16 @@ public:
         rioInfo.rioUsers = userInfo;
         // rioInfo.netplay = true;
     }
-    void setTagSet(Tag::TagSet tag_set, bool netplay) {
-        rioInfo.tag_set_id_name = std::make_pair(tag_set.id, tag_set.name);
+    void setTagSet(std::optional<Tag::TagSet> tag_set) {
+        if (tag_set){
+            rioInfo.tag_set_id_name = std::make_pair((*tag_set).id, (*tag_set).name);
+        }
+        else { clearTagSet(); }
     }
-    void clearTagSet(bool netplay) {
+    void clearTagSet() {
         rioInfo.tag_set_id_name = std::nullopt;
     }
-    void readLocalPlayers(int num_players){ //TODO - Assumes all human players, each with own port
-        for (int i=0; i<num_players; ++i){
-            switch (i)
-            {
-            case 0:
-                rioInfo.rioUsers[i] = LocalPlayers::m_local_player_1;
-                break;
-            case 1:
-                rioInfo.rioUsers[i] = LocalPlayers::m_local_player_2;
-                break;
-            case 2:
-                rioInfo.rioUsers[i] = LocalPlayers::m_local_player_3;
-                break;
-            case 3:
-                rioInfo.rioUsers[i] = LocalPlayers::m_local_player_4;
-                break;
-            default:
-                break;
-            }
-        }
-        logger << fmt::format("readLocalPlayers m_local_player_0, username={}\n", LocalPlayers::m_online_player.GetUsername());
-        logger << fmt::format("readLocalPlayers m_local_player_1, username={}\n", LocalPlayers::m_local_player_1.GetUsername());
-        logger << fmt::format("readLocalPlayers m_local_player_2, username={}\n", LocalPlayers::m_local_player_2.GetUsername());
-        logger << fmt::format("readLocalPlayers m_local_player_3, username={}\n", LocalPlayers::m_local_player_3.GetUsername());
-        logger << fmt::format("readLocalPlayers m_local_player_4, username={}\n", LocalPlayers::m_local_player_4.GetUsername());
-    }
+    void readLocalPlayers(int num_players, bool netplay);
 
     // Method to convert MGTT_State to string
     std::string stateToString(MGTT_State state) const {
@@ -508,9 +486,7 @@ private:
                 (*writer)["PlayerCount"] = *rPlayerCount->getValue();
 
                 // Get User info
-                if (!rioInfo.netplay) {
-                    readLocalPlayers(*rPlayerCount->getValue());
-                }
+                readLocalPlayers(*rPlayerCount->getValue(), rioInfo.netplay);
 
                 // Process users
                 std::vector<json> golfers;

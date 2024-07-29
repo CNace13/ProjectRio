@@ -127,6 +127,7 @@ static std::atomic<bool> s_stop_frame_step;
 
 static std::optional<TagSet> tagset_local = std::nullopt;
 static std::optional<TagSet> tagset_netplay = std::nullopt;
+static std::optional<u32> rio_game_id = std::nullopt;
 static bool previousContactMade = false;
 static bool runNetplayGameFunctions = true;
 
@@ -194,32 +195,32 @@ double GetActualEmulationSpeed()
 
 void FrameUpdateOnCPUThread()
 {
-  if (NetPlay::IsNetPlayRunning() && Core::IsRunningAndStarted())
-  {
-    if (mGameBeingPlayed != GameName::MarioBaseball) {
-      NetPlay::NetPlayClient::SendTimeBase();
-      if (s_mgtt_stat_tracker){
-        s_stat_tracker->setNetplaySession(true, "");
-      }
-    }
+  // if (NetPlay::IsNetPlayRunning() && Core::IsRunningAndStarted())
+  // {
+  //   if (mGameBeingPlayed == GameName::ToadstoolTour) {
+  //     NetPlay::NetPlayClient::SendTimeBase();
+  //     if (s_mgtt_stat_tracker){
+  //       s_stat_tracker->setNetplaySession(true, "");
+  //     }
+  //   }
 
-    else if (s_stat_tracker)
-    {
-      // Figure out if client is hosting via netplay settings. Could use local player as well
-      //bool is_hosting = NetPlay::GetNetSettings().m_IsHosting;
-      std::string opponent_name = "";
-      s_stat_tracker->setNetplaySession(true, opponent_name);
-    }
-  }
-  else if (s_stat_tracker && mGameBeingPlayed == GameName::MarioBaseball)
-  {
-    s_stat_tracker->setNetplaySession(false);
-  }
-  else if (s_mgtt_stat_tracker && mGameBeingPlayed == GameName::ToadstoolTour)
-  {
-    // TODO
-    s_mgtt_stat_tracker->setNetplaySession(false, "");
-  }
+  //   else if (mGameBeingPlayed == GameName::MarioBaseball && s_stat_tracker)
+  //   {
+  //     // Figure out if client is hosting via netplay settings. Could use local player as well
+  //     //bool is_hosting = NetPlay::GetNetSettings().m_IsHosting;
+  //     std::string opponent_name = "";
+  //     s_stat_tracker->setNetplaySession(true, opponent_name);
+  //   }
+  // }
+  // else if (s_stat_tracker && mGameBeingPlayed == GameName::MarioBaseball)
+  // {
+  //   s_stat_tracker->setNetplaySession(false);
+  // }
+  // else if (s_mgtt_stat_tracker && mGameBeingPlayed == GameName::ToadstoolTour)
+  // {
+  //   // TODO
+  //   s_mgtt_stat_tracker->setNetplaySession(false, "");
+  // }
 }
 
 // this function is called from PatchEngine.cpp (ApplyFramePatches()) safely
@@ -265,11 +266,6 @@ void RunRioFunctions(const Core::CPUThreadGuard& guard)
     if (s_mgtt_stat_tracker && (frame > 300))
     {
       s_mgtt_stat_tracker->run(guard);
-    }
-
-    if (PowerPC::MMU::HostRead_U32(guard, aGameId) == 0)
-    {
-      runNetplayGameFunctions = true;
     }
   }
 
@@ -788,35 +784,7 @@ void SetAvgPing(const Core::CPUThreadGuard& guard)
   }
 }
 
-void SetNetplayerUserInfo()
-{
-  switch (mGameBeingPlayed)
-  {
-  case GameName::MarioBaseball:
-    // tell the stat tracker who the players are
-    if (s_stat_tracker)
-    {
-      s_stat_tracker->setNetplayerUserInfo(NetPlay::NetPlayClient::getNetplayerUserInfo());
-    }
-    else {
-      s_stat_tracker = std::make_unique<StatTracker>();
-      s_stat_tracker->init();
-      s_stat_tracker->setNetplayerUserInfo(NetPlay::NetPlayClient::getNetplayerUserInfo());
-    }
-  case GameName::ToadstoolTour:
-    // tell the stat tracker who the players are
-    if (s_mgtt_stat_tracker)
-    {
-      s_mgtt_stat_tracker->setNetplayerUserInfo(NetPlay::NetPlayClient::getNetplayerUserInfo());
-    }
-    else {
-      s_mgtt_stat_tracker = std::make_unique<MGTT_StatTracker>();
-      s_mgtt_stat_tracker->setNetplayerUserInfo(NetPlay::NetPlayClient::getNetplayerUserInfo());
-    }
-  default:
-    break;
-  }
-}
+void SetNetplayerUserInfo() { }
 
 
 // Display messages and return values
@@ -922,16 +890,30 @@ bool Init(Core::System& system, std::unique_ptr<BootParameters> boot, const Wind
     if (!s_stat_tracker) {
       s_stat_tracker = std::make_unique<StatTracker>();
       s_stat_tracker->init();
-      std::cout << "Init stat tracker" << std::endl;
+      //Neplay Info
+      s_stat_tracker->setNetplaySession(NetPlay::IsNetPlayRunning(), "");
+      //TagSet Info
+      auto tag_set = GetActiveTagSet(NetPlay::IsNetPlayRunning());
+      if (tag_set){
+        s_stat_tracker->setTagSetId(*tag_set, NetPlay::IsNetPlayRunning());
+      }
+      else
+      {
+        s_stat_tracker->clearTagSetId(NetPlay::IsNetPlayRunning());
+      }
+      //Set GameID
+      if (rio_game_id){
+        s_stat_tracker->setGameID(*rio_game_id);
+      }
+      std::cout << "Init MSB stat tracker" << std::endl;
     }
   }
   else if (mGameBeingPlayed == GameName::ToadstoolTour){
-    if (!s_mgtt_stat_tracker) {
-      // auto& system = Core::System::GetInstance();
-      // Core::CPUThreadGuard guard(system);
-      s_mgtt_stat_tracker = std::make_unique<MGTT_StatTracker>();
-      std::cout << "Init s_mgtt_stat_tracker" << std::endl;
-    }
+    s_mgtt_stat_tracker = std::make_unique<MGTT_StatTracker>();
+    s_mgtt_stat_tracker->setNetplaySession(NetPlay::IsNetPlayRunning(), "");
+    auto tag_set = GetActiveTagSet(NetPlay::IsNetPlayRunning());
+    s_mgtt_stat_tracker->setTagSet(tag_set);
+    std::cout << "Init s_mgtt_stat_tracker" << std::endl;
   }
 
   return true;
@@ -1795,25 +1777,9 @@ CPUThreadGuard::~CPUThreadGuard()
 
 void SetGameID(u32 gameID)
 {
-  if (mGameBeingPlayed == GameName::MarioBaseball) {
-    if (!s_stat_tracker)
-    {
-      s_stat_tracker = std::make_unique<StatTracker>();
-      s_stat_tracker->init();
-    }
-
-    s_stat_tracker->setGameID(gameID);
-  }
-  if (mGameBeingPlayed == GameName::ToadstoolTour) {
-    if (!s_mgtt_stat_tracker)
-    {
-      // auto& system = Core::System::GetInstance();
-      // Core::CPUThreadGuard guard(system);
-      s_mgtt_stat_tracker = std::make_unique<MGTT_StatTracker>();
-    }
-
-    //TODO
-    // s_mgtt_stat_tracker->setGameID(gameID);
+  rio_game_id = gameID;
+  if (s_stat_tracker){
+    s_stat_tracker->setGameID(*rio_game_id);
   }
 }
 
@@ -1829,36 +1795,16 @@ void SetTagSet(std::optional<TagSet> tagset, bool netplay)
   else
     tagset_local = tagset;
 
-  if (mGameBeingPlayed == GameName::MarioBaseball) {
-    if (!s_stat_tracker)
-    {
-      s_stat_tracker = std::make_unique<StatTracker>();
-      s_stat_tracker->init();
+  auto tag_set = GetActiveTagSet(NetPlay::IsNetPlayRunning());
+  if (s_stat_tracker){
+    //TagSet Info
+    if (tag_set){
+      s_stat_tracker->setTagSetId(*tag_set, NetPlay::IsNetPlayRunning());
     }
-
-    if (tagset.has_value())
-    {
-      s_stat_tracker->setTagSetId(std::move(tagset.value()), netplay);
-    }
-    else
-    {
-      s_stat_tracker->clearTagSetId(netplay);
-    }
+    else{ s_stat_tracker->clearTagSetId(NetPlay::IsNetPlayRunning()); }
   }
-  if (mGameBeingPlayed == GameName::ToadstoolTour) {
-    if (!s_mgtt_stat_tracker)
-    {
-      s_mgtt_stat_tracker = std::make_unique<MGTT_StatTracker>();
-    }
-
-    if (tagset.has_value())
-    {
-      s_mgtt_stat_tracker->setTagSet(std::move(tagset.value()), netplay);
-    }
-    else
-    {
-      s_mgtt_stat_tracker->clearTagSet(netplay);
-    }
+  if (s_mgtt_stat_tracker){
+    s_mgtt_stat_tracker->setTagSet(*tag_set);
   }
 }
 
@@ -1898,10 +1844,15 @@ std::optional<std::vector<std::string>> GetTagSetGeckoString()
 
 bool GameSupportsTagSets()
 {
-  if (mGameBeingPlayed == GameName::MarioBaseball)
+  switch (mGameBeingPlayed)
+  {
+  case (GameName::MarioBaseball):
     return true;
-  else
+  case (GameName::ToadstoolTour):
+    return true;
+  default:
     return false;
+  }
 }
 
 std::optional<std::pair<u32,u32>> getGameFreeMemory()
