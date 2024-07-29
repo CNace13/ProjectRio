@@ -35,6 +35,7 @@
 #include "DolphinQt/QtUtils/ModalMessageBox.h"
 #include "DolphinQt/QtUtils/NonDefaultQPushButton.h"
 #include "DolphinQt/QtUtils/ParallelProgressDialog.h"
+#include "DolphinQt/QtUtils/SetWindowDecorations.h"
 #include "DolphinQt/QtUtils/SignalBlocking.h"
 #include "DolphinQt/Settings.h"
 #include "DolphinQt/Settings/USBDeviceAddToWhitelistDialog.h"
@@ -108,12 +109,9 @@ void WiiPane::CreateLayout()
 void WiiPane::ConnectLayout()
 {
   // Misc Settings
-  connect(m_aspect_ratio_choice, qOverload<int>(&QComboBox::currentIndexChanged), this,
-          &WiiPane::OnSaveConfig);
-  connect(m_system_language_choice, qOverload<int>(&QComboBox::currentIndexChanged), this,
-          &WiiPane::OnSaveConfig);
-  connect(m_sound_mode_choice, qOverload<int>(&QComboBox::currentIndexChanged), this,
-          &WiiPane::OnSaveConfig);
+  connect(m_aspect_ratio_choice, &QComboBox::currentIndexChanged, this, &WiiPane::OnSaveConfig);
+  connect(m_system_language_choice, &QComboBox::currentIndexChanged, this, &WiiPane::OnSaveConfig);
+  connect(m_sound_mode_choice, &QComboBox::currentIndexChanged, this, &WiiPane::OnSaveConfig);
   connect(m_screensaver_checkbox, &QCheckBox::toggled, this, &WiiPane::OnSaveConfig);
   connect(m_pal60_mode_checkbox, &QCheckBox::toggled, this, &WiiPane::OnSaveConfig);
   connect(m_connect_keyboard_checkbox, &QCheckBox::toggled, this, &WiiPane::OnSaveConfig);
@@ -127,8 +125,7 @@ void WiiPane::ConnectLayout()
   connect(m_sd_card_checkbox, &QCheckBox::toggled, this, &WiiPane::OnSaveConfig);
   connect(m_allow_sd_writes_checkbox, &QCheckBox::toggled, this, &WiiPane::OnSaveConfig);
   connect(m_sync_sd_folder_checkbox, &QCheckBox::toggled, this, &WiiPane::OnSaveConfig);
-  connect(m_sd_card_size_combo, qOverload<int>(&QComboBox::currentIndexChanged), this,
-          &WiiPane::OnSaveConfig);
+  connect(m_sd_card_size_combo, &QComboBox::currentIndexChanged, this, &WiiPane::OnSaveConfig);
 
   // Whitelisted USB Passthrough Devices
   connect(m_whitelist_usb_list, &QListWidget::itemClicked, this, &WiiPane::ValidateSelectionState);
@@ -138,7 +135,7 @@ void WiiPane::ConnectLayout()
           &WiiPane::OnUSBWhitelistRemoveButton);
 
   // Wii Remote Settings
-  connect(m_wiimote_ir_sensor_position, qOverload<int>(&QComboBox::currentIndexChanged), this,
+  connect(m_wiimote_ir_sensor_position, &QComboBox::currentIndexChanged, this,
           &WiiPane::OnSaveConfig);
   connect(m_wiimote_ir_sensitivity, &QSlider::valueChanged, this, &WiiPane::OnSaveConfig);
   connect(m_wiimote_speaker_volume, &QSlider::valueChanged, this, &WiiPane::OnSaveConfig);
@@ -288,6 +285,7 @@ void WiiPane::CreateSDCard()
         progress_dialog.Reset();
         return good;
       });
+      SetQWidgetWindowDecorations(progress_dialog.GetRaw());
       progress_dialog.GetRaw()->exec();
       if (!success.get())
         ModalMessageBox::warning(this, tr("Convert Folder to File Now"), tr("Conversion failed."));
@@ -312,6 +310,7 @@ void WiiPane::CreateSDCard()
         progress_dialog.Reset();
         return good;
       });
+      SetQWidgetWindowDecorations(progress_dialog.GetRaw());
       progress_dialog.GetRaw()->exec();
       if (!success.get())
         ModalMessageBox::warning(this, tr("Convert File to Folder Now"), tr("Conversion failed."));
@@ -468,6 +467,7 @@ void WiiPane::OnUSBWhitelistAddButton()
   USBDeviceAddToWhitelistDialog usb_whitelist_dialog(this);
   connect(&usb_whitelist_dialog, &USBDeviceAddToWhitelistDialog::accepted, this,
           &WiiPane::PopulateUSBPassthroughListWidget);
+  SetQWidgetWindowDecorations(&usb_whitelist_dialog);
   usb_whitelist_dialog.exec();
 }
 

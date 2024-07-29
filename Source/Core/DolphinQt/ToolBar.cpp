@@ -143,14 +143,15 @@ void ToolBar::MakeActions()
 
   addSeparator();
 
+  m_discord_action = addAction(tr("Discord"), this, &ToolBar::DiscordPressed);
   m_fullscreen_action = addAction(tr("FullScr"), this, &ToolBar::FullScreenPressed);
 // m_screenshot_action = addAction(tr("ScrShot"), this, &ToolBar::ScreenShotPressed);
 
   // Ensure every button has about the same width
   std::vector<QWidget*> items;
   for (const auto& action : {
-        m_open_action, m_pause_play_action, m_stop_action, m_stop_action,
-        m_local_play_action, m_start_netplay_action, m_fullscreen_action,
+        m_open_action, m_pause_play_action, m_stop_action, m_stop_action, m_local_play_action,
+        m_start_netplay_action, m_discord_action, m_fullscreen_action,
         m_config_action, m_graphics_action, m_controllers_action,
         m_step_action, m_step_over_action, m_step_out_action, m_skip_action, m_show_pc_action,
         m_set_pc_action})
@@ -161,10 +162,17 @@ void ToolBar::MakeActions()
   std::vector<int> widths;
   std::transform(items.begin(), items.end(), std::back_inserter(widths),
                  [](QWidget* item) { return item->sizeHint().width(); });
+  std::vector<int> heights;
+  std::transform(items.begin(), items.end(), std::back_inserter(heights),
+                 [](QWidget* item) { return item->sizeHint().height(); });
 
-  const int min_width = *std::max_element(widths.begin(), widths.end()) * 0.85;
+  const int min_width = *std::max_element(widths.begin(), widths.end());
+  const int min_height = *std::max_element(heights.begin(), heights.end());
   for (QWidget* widget : items)
+  {
     widget->setMinimumWidth(min_width);
+    widget->setMinimumHeight(min_height);
+  }
 }
 
 void ToolBar::UpdatePausePlayButtonState(const bool playing_state)
@@ -212,4 +220,5 @@ void ToolBar::UpdateIcons()
   m_start_netplay_action->setIcon(Resources::GetThemeIcon("wifi"));
   m_view_gecko_codes_action->setIcon(Resources::GetThemeIcon("debugger_add_breakpoint@2x"));
   m_local_play_action->setIcon(Resources::GetThemeIcon("rio"));
+  m_discord_action->setIcon(Resources::GetThemeIcon("discord"));
 }

@@ -10,7 +10,10 @@
 
 #ifdef _WIN32
 #include <windows.h>
+
 #define strerror_r(err, buf, len) strerror_s(buf, len, err)
+
+#include "Common/StringUtil.h"
 #endif
 
 namespace Common
@@ -53,11 +56,17 @@ std::string LastStrerrorString()
 // This function might change the error code.
 std::string GetLastErrorString()
 {
-  char error_message[BUFFER_SIZE];
+  return GetWin32ErrorString(GetLastError());
+}
 
-  FormatMessageA(FORMAT_MESSAGE_FROM_SYSTEM, nullptr, GetLastError(),
+// Like GetLastErrorString() but if you have already queried the error code.
+std::string GetWin32ErrorString(DWORD error_code)
+{
+  wchar_t error_message[BUFFER_SIZE];
+
+  FormatMessageW(FORMAT_MESSAGE_FROM_SYSTEM, nullptr, error_code,
                  MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT), error_message, BUFFER_SIZE, nullptr);
-  return std::string(error_message);
+  return WStringToUTF8(error_message);
 }
 
 // Obtains a full path to the specified module.

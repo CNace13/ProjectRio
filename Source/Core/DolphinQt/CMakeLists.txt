@@ -12,6 +12,7 @@ if (MSVC)
 endif()
 
 set(CMAKE_AUTOMOC ON)
+set(CMAKE_AUTORCC ON)
 
 find_package(Qt6 REQUIRED COMPONENTS Core Gui Widgets Svg)
 message(STATUS "Found Qt version ${Qt6_VERSION}")
@@ -29,6 +30,8 @@ add_executable(dolphin-emu
   CheatsManager.h
   Achievements/AchievementHeaderWidget.cpp
   Achievements/AchievementHeaderWidget.h
+  Achievements/AchievementLeaderboardWidget.cpp
+  Achievements/AchievementLeaderboardWidget.h
   Achievements/AchievementProgressWidget.cpp
   Achievements/AchievementProgressWidget.h
   Achievements/AchievementSettingsWidget.cpp
@@ -101,6 +104,8 @@ add_executable(dolphin-emu
   Config/GraphicsModListWidget.h
   Config/GraphicsModWarningWidget.cpp
   Config/GraphicsModWarningWidget.h
+  Config/HardcoreWarningWidget.cpp
+  Config/HardcoreWarningWidget.h
   Config/InfoWidget.cpp
   Config/InfoWidget.h
   Config/LocalPlayersWindow.cpp
@@ -186,6 +191,8 @@ add_executable(dolphin-emu
   Config/ToolTipControls/ToolTipCheckBox.h
   Config/ToolTipControls/ToolTipComboBox.cpp
   Config/ToolTipControls/ToolTipComboBox.h
+  Config/ToolTipControls/ToolTipPushButton.cpp
+  Config/ToolTipControls/ToolTipPushButton.h
   Config/ToolTipControls/ToolTipRadioButton.cpp
   Config/ToolTipControls/ToolTipRadioButton.h
   Config/ToolTipControls/ToolTipSlider.cpp
@@ -199,6 +206,12 @@ add_executable(dolphin-emu
   Config/WiimoteControllersWidget.h
   ConvertDialog.cpp
   ConvertDialog.h
+  Debugger/AssembleInstructionDialog.cpp
+  Debugger/AssembleInstructionDialog.h
+  Debugger/AssemblerWidget.cpp
+  Debugger/AssemblerWidget.h
+  Debugger/AssemblyEditor.cpp
+  Debugger/AssemblyEditor.h
   Debugger/BreakpointDialog.cpp
   Debugger/BreakpointDialog.h
   Debugger/BreakpointWidget.cpp
@@ -209,6 +222,8 @@ add_executable(dolphin-emu
   Debugger/CodeViewWidget.h
   Debugger/CodeWidget.cpp
   Debugger/CodeWidget.h
+  Debugger/GekkoSyntaxHighlight.cpp
+  Debugger/GekkoSyntaxHighlight.h
   Debugger/JITWidget.cpp
   Debugger/JITWidget.h
   Debugger/MemoryViewWidget.cpp
@@ -282,6 +297,8 @@ add_executable(dolphin-emu
   QtUtils/AspectRatioWidget.h
   QtUtils/BlockUserInputFilter.cpp
   QtUtils/BlockUserInputFilter.h
+  QtUtils/ClearLayoutRecursively.cpp
+  QtUtils/ClearLayoutRecursively.h
   QtUtils/DolphinFileDialog.cpp
   QtUtils/DolphinFileDialog.h
   QtUtils/DoubleClickEventFilter.cpp
@@ -299,6 +316,8 @@ add_executable(dolphin-emu
   QtUtils/ParallelProgressDialog.h
   QtUtils/PartiallyClosableTabWidget.cpp
   QtUtils/PartiallyClosableTabWidget.h
+  QtUtils/SetWindowDecorations.cpp
+  QtUtils/SetWindowDecorations.h
   QtUtils/SignalBlocking.h
   QtUtils/UTF8CodePointCountValidator.cpp
   QtUtils/UTF8CodePointCountValidator.h
@@ -336,6 +355,8 @@ add_executable(dolphin-emu
   Settings/USBDeviceAddToWhitelistDialog.h
   Settings/WiiPane.cpp
   Settings/WiiPane.h
+  SkylanderPortal/SkylanderModifyDialog.cpp
+  SkylanderPortal/SkylanderModifyDialog.h
   SkylanderPortal/SkylanderPortalWindow.cpp
   SkylanderPortal/SkylanderPortalWindow.h
   TAS/GCTASInputWindow.cpp
@@ -367,6 +388,12 @@ add_executable(dolphin-emu
   WiiUpdate.cpp
   WiiUpdate.h
 )
+
+if (WIN32)
+  target_sources(dolphin-emu PRIVATE
+    Styles/Dark/dark.qrc
+  )
+endif()
 
 if (NOT WIN32)
   target_sources(dolphin-emu PRIVATE
@@ -402,6 +429,7 @@ if (WIN32)
   PRIVATE
     gdi32.lib
     shell32.lib
+    dwmapi.lib # Needed to set window decorations for dark theme
   )
 endif()
 
@@ -429,7 +457,7 @@ if(WIN32)
 
   set_target_properties(dolphin-emu PROPERTIES
     DEBUG_POSTFIX    D
-    OUTPUT_NAME      "Project Rio"
+    OUTPUT_NAME      Dolphin
     WIN32_EXECUTABLE TRUE
   )
 
@@ -547,7 +575,7 @@ if(APPLE)
     MACOSX_BUNDLE_INFO_PLIST ${CMAKE_CURRENT_SOURCE_DIR}/Info.plist.in
     XCODE_ATTRIBUTE_CODE_SIGN_ENTITLEMENTS "${CMAKE_CURRENT_SOURCE_DIR}/DolphinEmu.entitlements"
     XCODE_ATTRIBUTE_OTHER_CODE_SIGN_FLAGS "--deep --options=runtime"
-    OUTPUT_NAME "Project Rio"
+    OUTPUT_NAME Dolphin
     )
 
   # Copy qt.conf into the bundle
@@ -555,8 +583,8 @@ if(APPLE)
   set_source_files_properties("${CMAKE_CURRENT_SOURCE_DIR}/qt.conf" PROPERTIES MACOSX_PACKAGE_LOCATION Resources)
 
   # Copy icon into the bundle
-  target_sources(dolphin-emu PRIVATE "${CMAKE_SOURCE_DIR}/Data/ProjectRio.icns")
-  set_source_files_properties("${CMAKE_SOURCE_DIR}/Data/ProjectRio.icns" PROPERTIES MACOSX_PACKAGE_LOCATION Resources)
+  target_sources(dolphin-emu PRIVATE "${CMAKE_SOURCE_DIR}/Data/Dolphin.icns")
+  set_source_files_properties("${CMAKE_SOURCE_DIR}/Data/Dolphin.icns" PROPERTIES MACOSX_PACKAGE_LOCATION Resources)
 
   # Manually include plugins
   find_package(Qt6QMacStylePlugin REQUIRED PATHS ${Qt6Widgets_DIR})

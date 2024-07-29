@@ -16,6 +16,13 @@
     <ClInclude Include="Common\Align.h" />
     <ClInclude Include="Common\Analytics.h" />
     <ClInclude Include="Common\Assert.h" />
+    <ClInclude Include="Common\Assembler\AssemblerShared.h" />
+    <ClInclude Include="Common\Assembler\AssemblerTables.h" />
+    <ClInclude Include="Common\Assembler\CaseInsensitiveDict.h" />
+    <ClInclude Include="Common\Assembler\GekkoAssembler.h" />
+    <ClInclude Include="Common\Assembler\GekkoIRGen.h" />
+    <ClInclude Include="Common\Assembler\GekkoLexer.h" />
+    <ClInclude Include="Common\Assembler\GekkoParser.h" />
     <ClInclude Include="Common\BitField.h" />
     <ClInclude Include="Common\BitSet.h" />
     <ClInclude Include="Common\BitUtils.h" />
@@ -35,6 +42,7 @@
     <ClInclude Include="Common\Crypto\AES.h" />
     <ClInclude Include="Common\Crypto\bn.h" />
     <ClInclude Include="Common\Crypto\ec.h" />
+    <ClInclude Include="Common\Crypto\HMAC.h" />
     <ClInclude Include="Common\Crypto\SHA1.h" />
     <ClInclude Include="Common\Debug\MemoryPatches.h" />
     <ClInclude Include="Common\Debug\Threads.h" />
@@ -117,6 +125,7 @@
     <ClInclude Include="Common\Intrinsics.h" />
     <ClInclude Include="Common\IOFile.h" />
     <ClInclude Include="Common\JitRegister.h" />
+    <ClInclude Include="Common\JsonUtil.h" />
     <ClInclude Include="Common\Lazy.h" />
     <ClInclude Include="Common\LdrWatcher.h" />
     <ClInclude Include="Common\LinearDiskCache.h" />
@@ -143,6 +152,7 @@
     <ClInclude Include="Common\Semaphore.h" />
     <ClInclude Include="Common\SettingsHandler.h" />
     <ClInclude Include="Common\SFMLHelper.h" />
+    <ClInclude Include="Common\SmallVector.h" />
     <ClInclude Include="Common\SocketContext.h" />
     <ClInclude Include="Common\SPSCQueue.h" />
     <ClInclude Include="Common\StringLiteral.h" />
@@ -190,6 +200,7 @@
     <ClInclude Include="Core\ConfigManager.h" />
     <ClInclude Include="Core\Core.h" />
     <ClInclude Include="Core\CoreTiming.h" />
+    <ClInclude Include="Core\CPUThreadConfigCallback.h" />
     <ClInclude Include="Core\Debugger\CodeTrace.h" />
     <ClInclude Include="Core\Debugger\DebugInterface.h" />
     <ClInclude Include="Core\Debugger\Debugger_SymbolMap.h" />
@@ -340,6 +351,8 @@
     <ClInclude Include="Core\HW\WiimoteReal\WiimoteReal.h" />
     <ClInclude Include="Core\HW\WiiSave.h" />
     <ClInclude Include="Core\HW\WiiSaveStructs.h" />
+    <ClInclude Include="Core\IOS\Crypto\Sha.h" />
+    <ClInclude Include="Core\IOS\Crypto\AesDevice.h" />
     <ClInclude Include="Core\IOS\Device.h" />
     <ClInclude Include="Core\IOS\DeviceStub.h" />
     <ClInclude Include="Core\IOS\DI\DI.h" />
@@ -360,6 +373,9 @@
     <ClInclude Include="Core\IOS\Network\KD\NWC24DL.h" />
     <ClInclude Include="Core\IOS\Network\KD\VFF\VFFUtil.h" />
     <ClInclude Include="Core\IOS\Network\KD\WC24File.h" />
+    <ClInclude Include="Core\IOS\Network\KD\Mail\MailCommon.h" />
+    <ClInclude Include="Core\IOS\Network\KD\Mail\WC24FriendList.h" />
+    <ClInclude Include="Core\IOS\Network\KD\Mail\WC24Send.h" />
     <ClInclude Include="Core\IOS\Network\MACUtils.h" />
     <ClInclude Include="Core\IOS\Network\NCD\Manage.h" />
     <ClInclude Include="Core\IOS\Network\NCD\WiiNetConfig.h" />
@@ -379,7 +395,9 @@
     <ClInclude Include="Core\IOS\USB\Bluetooth\WiimoteHIDAttr.h" />
     <ClInclude Include="Core\IOS\USB\Common.h" />
     <ClInclude Include="Core\IOS\USB\Emulated\Infinity.h" />
-    <ClInclude Include="Core\IOS\USB\Emulated\Skylander.h" />
+    <ClInclude Include="Core\IOS\USB\Emulated\Skylanders\Skylander.h" />
+    <ClInclude Include="Core\IOS\USB\Emulated\Skylanders\SkylanderCrypto.h" />
+    <ClInclude Include="Core\IOS\USB\Emulated\Skylanders\SkylanderFigure.h" />
     <ClInclude Include="Core\IOS\USB\Host.h" />
     <ClInclude Include="Core\IOS\USB\LibusbDevice.h" />
     <ClInclude Include="Core\IOS\USB\OH0\OH0.h" />
@@ -671,15 +689,19 @@
     <ClInclude Include="VideoCommon\GeometryShaderGen.h" />
     <ClInclude Include="VideoCommon\GeometryShaderManager.h" />
     <ClInclude Include="VideoCommon\GraphicsModSystem\Config\GraphicsMod.h" />
+    <ClInclude Include="VideoCommon\GraphicsModSystem\Config\GraphicsModAsset.h" />
     <ClInclude Include="VideoCommon\GraphicsModSystem\Config\GraphicsModFeature.h" />
     <ClInclude Include="VideoCommon\GraphicsModSystem\Config\GraphicsModGroup.h" />
     <ClInclude Include="VideoCommon\GraphicsModSystem\Config\GraphicsTarget.h" />
     <ClInclude Include="VideoCommon\GraphicsModSystem\Config\GraphicsTargetGroup.h" />
     <ClInclude Include="VideoCommon\GraphicsModSystem\Constants.h" />
+    <ClInclude Include="VideoCommon\GraphicsModSystem\Runtime\Actions\CustomPipelineAction.h" />
     <ClInclude Include="VideoCommon\GraphicsModSystem\Runtime\Actions\MoveAction.h" />
     <ClInclude Include="VideoCommon\GraphicsModSystem\Runtime\Actions\PrintAction.h" />
     <ClInclude Include="VideoCommon\GraphicsModSystem\Runtime\Actions\ScaleAction.h" />
     <ClInclude Include="VideoCommon\GraphicsModSystem\Runtime\Actions\SkipAction.h" />
+    <ClInclude Include="VideoCommon\GraphicsModSystem\Runtime\CustomPipeline.h" />
+    <ClInclude Include="VideoCommon\GraphicsModSystem\Runtime\CustomShaderCache.h" />
     <ClInclude Include="VideoCommon\GraphicsModSystem\Runtime\FBInfo.h" />
     <ClInclude Include="VideoCommon\GraphicsModSystem\Runtime\GraphicsModAction.h" />
     <ClInclude Include="VideoCommon\GraphicsModSystem\Runtime\GraphicsModActionData.h" />
@@ -720,6 +742,7 @@
     <ClInclude Include="VideoCommon\TextureDecoder_Util.h" />
     <ClInclude Include="VideoCommon\TextureDecoder.h" />
     <ClInclude Include="VideoCommon\TextureInfo.h" />
+    <ClInclude Include="VideoCommon\TextureUtils.h" />
     <ClInclude Include="VideoCommon\TMEM.h" />
     <ClInclude Include="VideoCommon\UberShaderCommon.h" />
     <ClInclude Include="VideoCommon\UberShaderPixel.h" />
@@ -742,6 +765,7 @@
     <ClInclude Include="VideoCommon\VideoState.h" />
     <ClInclude Include="VideoCommon\Widescreen.h" />
     <ClInclude Include="VideoCommon\XFMemory.h" />
+    <ClInclude Include="VideoCommon\XFStateManager.h" />
     <ClInclude Include="VideoCommon\XFStructs.h" />
   </ItemGroup>
   <ItemGroup>
@@ -756,6 +780,12 @@
     <ClCompile Include="AudioCommon\WASAPIStream.cpp" />
     <ClCompile Include="AudioCommon\WaveFile.cpp" />
     <ClCompile Include="Common\Analytics.cpp" />
+    <ClCompile Include="Common\Assembler\AssemblerShared.cpp" />
+    <ClCompile Include="Common\Assembler\AssemblerTables.cpp" />
+    <ClCompile Include="Common\Assembler\GekkoAssembler.cpp" />
+    <ClCompile Include="Common\Assembler\GekkoIRGen.cpp" />
+    <ClCompile Include="Common\Assembler\GekkoLexer.cpp" />
+    <ClCompile Include="Common\Assembler\GekkoParser.cpp" />
     <ClCompile Include="Common\ColorUtil.cpp" />
     <ClCompile Include="Common\CommonFuncs.cpp" />
     <ClCompile Include="Common\CompatPatches.cpp" />
@@ -765,6 +795,7 @@
     <ClCompile Include="Common\Crypto\AES.cpp" />
     <ClCompile Include="Common\Crypto\bn.cpp" />
     <ClCompile Include="Common\Crypto\ec.cpp" />
+    <ClCompile Include="Common\Crypto\HMAC.cpp" />
     <ClCompile Include="Common\Crypto\SHA1.cpp" />
     <ClCompile Include="Common\Debug\MemoryPatches.cpp" />
     <ClCompile Include="Common\Debug\Watches.cpp" />
@@ -841,6 +872,7 @@
     <ClCompile Include="Core\ConfigManager.cpp" />
     <ClCompile Include="Core\Core.cpp" />
     <ClCompile Include="Core\CoreTiming.cpp" />
+    <ClCompile Include="Core\CPUThreadConfigCallback.cpp" />
     <ClCompile Include="Core\Debugger\CodeTrace.cpp" />
     <ClCompile Include="Core\Debugger\Debugger_SymbolMap.cpp" />
     <ClCompile Include="Core\Debugger\Dump.cpp" />
@@ -981,6 +1013,8 @@
     <ClCompile Include="Core\HW\WiimoteReal\IOWin.cpp" />
     <ClCompile Include="Core\HW\WiimoteReal\WiimoteReal.cpp" />
     <ClCompile Include="Core\HW\WiiSave.cpp" />
+    <ClCompile Include="Core\IOS\Crypto\Sha.cpp" />
+    <ClCompile Include="Core\IOS\Crypto\AesDevice.cpp" />
     <ClCompile Include="Core\IOS\Device.cpp" />
     <ClCompile Include="Core\IOS\DeviceStub.cpp" />
     <ClCompile Include="Core\IOS\DI\DI.cpp" />
@@ -1007,6 +1041,8 @@
     <ClCompile Include="Core\IOS\Network\KD\NWC24Config.cpp" />
     <ClCompile Include="Core\IOS\Network\KD\NWC24DL.cpp" />
     <ClCompile Include="Core\IOS\Network\KD\VFF\VFFUtil.cpp" />
+    <ClCompile Include="Core\IOS\Network\KD\Mail\WC24FriendList.cpp" />
+    <ClCompile Include="Core\IOS\Network\KD\Mail\WC24Send.cpp" />
     <ClCompile Include="Core\IOS\Network\MACUtils.cpp" />
     <ClCompile Include="Core\IOS\Network\NCD\Manage.cpp" />
     <ClCompile Include="Core\IOS\Network\NCD\WiiNetConfig.cpp" />
@@ -1023,7 +1059,9 @@
     <ClCompile Include="Core\IOS\USB\Bluetooth\WiimoteHIDAttr.cpp" />
     <ClCompile Include="Core\IOS\USB\Common.cpp" />
     <ClCompile Include="Core\IOS\USB\Emulated\Infinity.cpp" />
-    <ClCompile Include="Core\IOS\USB\Emulated\Skylander.cpp" />
+    <ClCompile Include="Core\IOS\USB\Emulated\Skylanders\Skylander.cpp" />
+    <ClCompile Include="Core\IOS\USB\Emulated\Skylanders\SkylanderCrypto.cpp" />
+    <ClCompile Include="Core\IOS\USB\Emulated\Skylanders\SkylanderFigure.cpp" />
     <ClCompile Include="Core\IOS\USB\Host.cpp" />
     <ClCompile Include="Core\IOS\USB\LibusbDevice.cpp" />
     <ClCompile Include="Core\IOS\USB\OH0\OH0.cpp" />
@@ -1289,14 +1327,18 @@
     <ClCompile Include="VideoCommon\GeometryShaderGen.cpp" />
     <ClCompile Include="VideoCommon\GeometryShaderManager.cpp" />
     <ClCompile Include="VideoCommon\GraphicsModSystem\Config\GraphicsMod.cpp" />
+    <ClCompile Include="VideoCommon\GraphicsModSystem\Config\GraphicsModAsset.cpp" />
     <ClCompile Include="VideoCommon\GraphicsModSystem\Config\GraphicsModFeature.cpp" />
     <ClCompile Include="VideoCommon\GraphicsModSystem\Config\GraphicsModGroup.cpp" />
     <ClCompile Include="VideoCommon\GraphicsModSystem\Config\GraphicsTarget.cpp" />
     <ClCompile Include="VideoCommon\GraphicsModSystem\Config\GraphicsTargetGroup.cpp" />
+    <ClCompile Include="VideoCommon\GraphicsModSystem\Runtime\Actions\CustomPipelineAction.cpp" />
     <ClCompile Include="VideoCommon\GraphicsModSystem\Runtime\Actions\MoveAction.cpp" />
     <ClCompile Include="VideoCommon\GraphicsModSystem\Runtime\Actions\PrintAction.cpp" />
     <ClCompile Include="VideoCommon\GraphicsModSystem\Runtime\Actions\ScaleAction.cpp" />
     <ClCompile Include="VideoCommon\GraphicsModSystem\Runtime\Actions\SkipAction.cpp" />
+    <ClCompile Include="VideoCommon\GraphicsModSystem\Runtime\CustomPipeline.cpp" />
+    <ClCompile Include="VideoCommon\GraphicsModSystem\Runtime\CustomShaderCache.cpp" />
     <ClCompile Include="VideoCommon\GraphicsModSystem\Runtime\FBInfo.cpp" />
     <ClCompile Include="VideoCommon\GraphicsModSystem\Runtime\GraphicsModActionFactory.cpp" />
     <ClCompile Include="VideoCommon\GraphicsModSystem\Runtime\GraphicsModManager.cpp" />
@@ -1328,6 +1370,7 @@
     <ClCompile Include="VideoCommon\TextureConverterShaderGen.cpp" />
     <ClCompile Include="VideoCommon\TextureDecoder_Common.cpp" />
     <ClCompile Include="VideoCommon\TextureInfo.cpp" />
+    <ClCompile Include="VideoCommon\TextureUtils.cpp" />
     <ClCompile Include="VideoCommon\TMEM.cpp" />
     <ClCompile Include="VideoCommon\UberShaderCommon.cpp" />
     <ClCompile Include="VideoCommon\UberShaderPixel.cpp" />
@@ -1347,6 +1390,7 @@
     <ClCompile Include="VideoCommon\VideoState.cpp" />
     <ClCompile Include="VideoCommon\Widescreen.cpp" />
     <ClCompile Include="VideoCommon\XFMemory.cpp" />
+    <ClCompile Include="VideoCommon\XFStateManager.cpp" />
     <ClCompile Include="VideoCommon\XFStructs.cpp" />
   </ItemGroup>
   <ItemGroup>

@@ -76,6 +76,7 @@ enum
   D_GPU_DRIVERS_TMP,
   D_GPU_DRIVERS_HOOKS,
   D_GPU_DRIVERS_FILE_REDIRECT,
+  D_ASM_ROOT_IDX,
   FIRST_FILE_USER_PATH_IDX,
   F_DOLPHINCONFIG_IDX = FIRST_FILE_USER_PATH_IDX,
   F_LOCALPLAYERSCONFIG_IDX,
@@ -83,7 +84,6 @@ enum
   F_WIIPADCONFIG_IDX,
   F_GCKEYBOARDCONFIG_IDX,
   F_GFXCONFIG_IDX,
-  F_DEBUGGERCONFIG_IDX,
   F_LOGGERCONFIG_IDX,
   F_MAINLOG_IDX,
   F_MEM1DUMP_IDX,
@@ -235,9 +235,6 @@ std::string GetThemeDir(const std::string& theme_name);
 
 // Returns the path to where the sys file are
 const std::string& GetSysDirectory();
-
-// Returns Dir of built-in themes
-std::string GetSysStylesPath();
 
 #ifdef ANDROID
 void SetSysDirectory(const std::string& path);

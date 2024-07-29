@@ -89,6 +89,7 @@ public:
   virtual void OnCourseResult(std::string message) = 0;
   virtual bool IsSpectating() = 0;
   virtual void SetSpectating(bool spectating) = 0;
+  virtual void OnTtlDetermined(u8 ttl) = 0;
 
   virtual bool IsRecording() = 0;
   virtual std::shared_ptr<const UICommon::GameFile>
@@ -177,6 +178,7 @@ public:
   void OnTraversalStateChanged() override;
   void OnConnectReady(ENetAddress addr) override;
   void OnConnectFailed(Common::TraversalConnectFailedReason reason) override;
+  void OnTtlDetermined(u8 ttl) override {}
 
   bool IsFirstInGamePad(int ingame_pad) const;
   int NumLocalPads() const;

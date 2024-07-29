@@ -381,13 +381,12 @@ NetPlaySetupDialog::~NetPlaySetupDialog()
 
 void NetPlaySetupDialog::ConnectWidgets()
 {
-  connect(m_connection_type, qOverload<int>(&QComboBox::currentIndexChanged), this,
+  connect(m_connection_type, &QComboBox::currentIndexChanged, this,
           &NetPlaySetupDialog::OnConnectionTypeChanged);
 
   // Connect widget
   connect(m_ip_edit, &QLineEdit::textChanged, this, &NetPlaySetupDialog::SaveSettings);
-  connect(m_connect_port_box, qOverload<int>(&QSpinBox::valueChanged), this,
-          &NetPlaySetupDialog::SaveSettings);
+  connect(m_connect_port_box, &QSpinBox::valueChanged, this, &NetPlaySetupDialog::SaveSettings);
   // Host widget
   connect(m_host_port_box, qOverload<int>(&QSpinBox::valueChanged), this,
           &NetPlaySetupDialog::SaveSettings);
@@ -412,7 +411,7 @@ void NetPlaySetupDialog::ConnectWidgets()
     m_host_chunked_upload_limit_box->setEnabled(value);
     SaveSettings();
   });
-  connect(m_host_chunked_upload_limit_box, qOverload<int>(&QSpinBox::valueChanged), this,
+  connect(m_host_chunked_upload_limit_box, &QSpinBox::valueChanged, this,
           &NetPlaySetupDialog::SaveSettings);
 
   connect(m_host_server_browser, &QCheckBox::toggled, this, &NetPlaySetupDialog::SaveSettings);

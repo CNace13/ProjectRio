@@ -15,6 +15,7 @@
 #include <QVBoxLayout>
 #include <QWidget>
 
+#include "Core/Config/AchievementSettings.h"
 #include "Core/Config/MainSettings.h"
 #include "Core/Config/UISettings.h"
 #include "Core/ConfigManager.h"
@@ -24,6 +25,7 @@
 
 #include "DolphinQt/QtUtils/ModalMessageBox.h"
 #include "DolphinQt/QtUtils/NonDefaultQPushButton.h"
+#include "DolphinQt/QtUtils/SetWindowDecorations.h"
 #include "DolphinQt/QtUtils/SignalBlocking.h"
 #include "DolphinQt/Settings.h"
 
@@ -84,7 +86,13 @@ void GeneralPane::OnEmulationStateChanged(Core::State state)
   const bool running = state != Core::State::Uninitialized;
 
   m_checkbox_dualcore->setEnabled(!running);
-  m_checkbox_override_region_settings->setEnabled(!running);
+//#ifdef USE_RETRO_ACHIEVEMENTS
+//  bool hardcore = Config::Get(Config::RA_HARDCORE_ENABLED);
+//  m_checkbox_cheats->setEnabled(!running && !hardcore);
+//#else   // USE_RETRO_ACHIEVEMENTS
+//  m_checkbox_cheats->setEnabled(!running);
+//#endif  // USE_RETRO_ACHIEVEMENTS
+//  m_checkbox_override_region_settings->setEnabled(!running);
 #ifdef USE_DISCORD_PRESENCE
   m_checkbox_discord_presence->setEnabled(!running);
 #endif
@@ -101,22 +109,22 @@ void GeneralPane::ConnectLayout()
   connect(m_checkbox_discord_presence, &QCheckBox::toggled, this, &GeneralPane::OnSaveConfig);
 #endif
 
-  //if (AutoUpdateChecker::SystemSupportsAutoUpdates())
-  //{
-  //  connect(m_combobox_update_track, qOverload<int>(&QComboBox::currentIndexChanged), this,
-  //          &GeneralPane::OnSaveConfig);
-  //  connect(&Settings::Instance(), &Settings::AutoUpdateTrackChanged, this,
-  //          &GeneralPane::LoadConfig);
-  //}
+  // if (AutoUpdateChecker::SystemSupportsAutoUpdates())
+  // {
+  //   connect(m_combobox_update_track, &QComboBox::currentIndexChanged, this,
+  //           &GeneralPane::OnSaveConfig);
+  //   connect(&Settings::Instance(), &Settings::AutoUpdateTrackChanged, this,
+  //           &GeneralPane::LoadConfig);
+  // }
 
   // Advanced
-  connect(m_combobox_speedlimit, qOverload<int>(&QComboBox::currentIndexChanged), [this]() {
+  connect(m_combobox_speedlimit, &QComboBox::currentIndexChanged, [this]() {
     Config::SetBaseOrCurrent(Config::MAIN_EMULATION_SPEED,
                              m_combobox_speedlimit->currentIndex() * 0.1f);
     Config::Save();
   });
 
-  connect(m_combobox_fallback_region, qOverload<int>(&QComboBox::currentIndexChanged), this,
+  connect(m_combobox_fallback_region, &QComboBox::currentIndexChanged, this,
           &GeneralPane::OnSaveConfig);
   connect(&Settings::Instance(), &Settings::FallbackRegionChanged, this, &GeneralPane::LoadConfig);
 
@@ -366,6 +374,7 @@ void GeneralPane::GenerateNewIdentity()
   message_box.setIcon(QMessageBox::Information);
   message_box.setWindowTitle(tr("Identity Generation"));
   message_box.setText(tr("New identity generated."));
+  SetQWidgetWindowDecorations(&message_box);
   message_box.exec();
 }
 #endif

@@ -3,18 +3,26 @@
 
 #pragma once
 
+#include <array>
+#include <optional>
+#include <span>
 #include <string_view>
 #include <vector>
 
 #include "Common/CommonTypes.h"
 #include "Common/Matrix.h"
+#include "Common/SmallVector.h"
 #include "VideoCommon/Assets/TextureAsset.h"
+#include "VideoCommon/PixelShaderGen.h"
 
 namespace GraphicsModActionData
 {
 struct DrawStarted
 {
+  const Common::SmallVector<u32, 8>& texture_units;
   bool* skip;
+  std::optional<CustomPixelShader>* custom_pixel_shader;
+  std::span<u8>* material_uniform_buffer;
 };
 
 struct EFB

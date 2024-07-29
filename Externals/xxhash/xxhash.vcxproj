@@ -17,18 +17,18 @@
   <PropertyGroup Label="UserMacros" />
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
     <ClCompile>
-      <LanguageStandard>stdcpp20</LanguageStandard>
+      <LanguageStandard>stdcpplatest</LanguageStandard>
     </ClCompile>
   </ItemDefinitionGroup>
   <ItemGroup>
-    <ClCompile Include="xxhash.c" />
+    <ClCompile Include="xxHash/xxhash.c" />
   </ItemGroup>
   <ItemGroup>
-    <Text Include="LICENSE" />
     <Text Include="CMakeLists.txt" />
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="xxhash.h" />
+    <ClInclude Include="xxHash/xxh3.h" />
+    <ClInclude Include="xxHash/xxhash.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

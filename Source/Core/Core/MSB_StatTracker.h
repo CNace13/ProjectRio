@@ -128,11 +128,11 @@ static const std::map<u8, std::string> cCharIdToCharName = {
 
 static const std::map<u8, std::string> cStadiumIdToStadiumName = {
     {0x0, "Mario Stadium"},
-    {0x1, "Bowser's Castle"},
-    {0x2, "Wario's Palace"},
-    {0x3, "Yoshi's Island"},
-    {0x4, "Peach's Garden"},
-    {0x5, "DK's Jungle"},
+    {0x1, "Bowser Castle"},
+    {0x2, "Wario Palace"},
+    {0x3, "Yoshi Park"},
+    {0x4, "Peach Garden"},
+    {0x5, "DK Jungle"},
     {0x6, "Toy Field"}
 };
 

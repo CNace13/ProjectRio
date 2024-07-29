@@ -150,6 +150,7 @@ private:
   void OnTraversalStateChanged() override;
   void OnConnectReady(ENetAddress) override {}
   void OnConnectFailed(Common::TraversalConnectFailedReason) override {}
+  void OnTtlDetermined(u8 ttl) override;
   void UpdatePadMapping();
   void UpdateGBAConfig();
   void UpdateWiimoteMapping();

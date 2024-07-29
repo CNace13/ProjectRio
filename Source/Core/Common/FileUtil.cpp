@@ -452,7 +452,7 @@ FSTEntry ScanDirectoryTree(std::string directory, bool recursive)
   auto dirent_to_fstent = [&](const fs::directory_entry& entry) {
     return FSTEntry{
         .isDirectory = entry.is_directory(),
-        .size = entry.is_directory() ? 0 : entry.file_size(),
+        .size = entry.is_directory() || entry.is_fifo() ? 0 : entry.file_size(),
         .physicalName = path_to_physical_name(entry.path()),
         .virtualName = PathToString(entry.path().filename()),
     };
@@ -879,7 +879,6 @@ static void RebuildUserDirectories(unsigned int dir_index)
     s_user_paths[F_WIIPADCONFIG_IDX] = s_user_paths[D_CONFIG_IDX] + WIIPAD_CONFIG;
     s_user_paths[F_GCKEYBOARDCONFIG_IDX] = s_user_paths[D_CONFIG_IDX] + GCKEYBOARD_CONFIG;
     s_user_paths[F_GFXCONFIG_IDX] = s_user_paths[D_CONFIG_IDX] + GFX_CONFIG;
-    s_user_paths[F_DEBUGGERCONFIG_IDX] = s_user_paths[D_CONFIG_IDX] + DEBUGGER_CONFIG;
     s_user_paths[F_LOGGERCONFIG_IDX] = s_user_paths[D_CONFIG_IDX] + LOGGER_CONFIG;
     s_user_paths[F_DUALSHOCKUDPCLIENTCONFIG_IDX] =
         s_user_paths[D_CONFIG_IDX] + DUALSHOCKUDPCLIENT_CONFIG;
@@ -904,6 +903,8 @@ static void RebuildUserDirectories(unsigned int dir_index)
     s_user_paths[D_GBASAVES_IDX] = s_user_paths[D_GBAUSER_IDX] + GBASAVES_DIR DIR_SEP;
     s_user_paths[F_GBABIOS_IDX] = s_user_paths[D_GBAUSER_IDX] + GBA_BIOS;
 
+    s_user_paths[D_ASM_ROOT_IDX] = s_user_paths[D_USER_IDX] + ASSEMBLY_DIR DIR_SEP;
+
     // The shader cache has moved to the cache directory, so remove the old one.
     // TODO: remove that someday.
     File::DeleteDirRecursively(s_user_paths[D_USER_IDX] + SHADERCACHE_LEGACY_DIR DIR_SEP);
@@ -916,7 +917,6 @@ static void RebuildUserDirectories(unsigned int dir_index)
     s_user_paths[F_GCKEYBOARDCONFIG_IDX] = s_user_paths[D_CONFIG_IDX] + GCKEYBOARD_CONFIG;
     s_user_paths[F_WIIPADCONFIG_IDX] = s_user_paths[D_CONFIG_IDX] + WIIPAD_CONFIG;
     s_user_paths[F_GFXCONFIG_IDX] = s_user_paths[D_CONFIG_IDX] + GFX_CONFIG;
-    s_user_paths[F_DEBUGGERCONFIG_IDX] = s_user_paths[D_CONFIG_IDX] + DEBUGGER_CONFIG;
     s_user_paths[F_LOGGERCONFIG_IDX] = s_user_paths[D_CONFIG_IDX] + LOGGER_CONFIG;
     s_user_paths[F_DUALSHOCKUDPCLIENTCONFIG_IDX] =
         s_user_paths[D_CONFIG_IDX] + DUALSHOCKUDPCLIENT_CONFIG;
@@ -966,11 +966,6 @@ static void RebuildUserDirectories(unsigned int dir_index)
 const std::string& GetUserPath(unsigned int dir_index)
 {
   return s_user_paths[dir_index];
-}
-
-std::string GetSysStylesPath()
-{
-  return GetSysDirectory() + STYLES_DIR + DIR_SEP + "Kuroi-master" + DIR_SEP;
 }
 
 // Sets a user directory path

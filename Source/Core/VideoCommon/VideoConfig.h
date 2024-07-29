@@ -21,10 +21,11 @@ constexpr int EFB_SCALE_AUTO_INTEGRAL = 0;
 
 enum class AspectMode : int
 {
-  Auto,
-  AnalogWide,
-  Analog,
+  Auto,           // 4:3 or 16:9
+  ForceWide,      // 16:9
+  ForceStandard,  // 4:3
   Stretch,
+  Custom,
 };
 
 enum class StereoMode : int
@@ -50,6 +51,17 @@ enum class TextureFilteringMode : int
   Default,
   Nearest,
   Linear,
+};
+
+enum class OutputResamplingMode : int
+{
+  Default,
+  Bilinear,
+  BSpline,
+  MitchellNetravali,
+  CatmullRom,
+  SharpBilinear,
+  AreaSampling,
 };
 
 enum class ColorCorrectionRegion : int
@@ -94,7 +106,13 @@ struct VideoConfig final
   bool bVSyncActive = false;
   bool bWidescreenHack = false;
   AspectMode aspect_mode{};
+  int custom_aspect_width = 1;
+  int custom_aspect_height = 1;
   AspectMode suggested_aspect_mode{};
+  u32 widescreen_heuristic_transition_threshold = 0;
+  float widescreen_heuristic_aspect_ratio_slop = 0.f;
+  float widescreen_heuristic_standard_ratio = 0.f;
+  float widescreen_heuristic_widescreen_ratio = 0.f;
   bool bCrop = false;  // Aspect ratio controls.
   bool bShaderCache = false;
 
@@ -103,6 +121,7 @@ struct VideoConfig final
   bool bSSAA = false;
   int iEFBScale = 0;
   TextureFilteringMode texture_filtering_mode = TextureFilteringMode::Default;
+  OutputResamplingMode output_resampling_mode = OutputResamplingMode::Default;
   int iMaxAnisotropy = 0;
   std::string sPostProcessingShader;
   bool bForceTrueColor = false;
@@ -126,8 +145,9 @@ struct VideoConfig final
     float fSDRDisplayCustomGamma = 2.2f;
 
     // HDR:
-    // 200 is a good default value that matches the brightness of many SDR screens
-    float fHDRPaperWhiteNits = 200.f;
+    // 203 is a good default value that matches the brightness of many SDR screens.
+    // It's also the value recommended by the ITU.
+    float fHDRPaperWhiteNits = 203.f;
   } color_correction;
 
   // Information
@@ -351,6 +371,8 @@ struct VideoConfig final
   bool UsingUberShaders() const;
   u32 GetShaderCompilerThreads() const;
   u32 GetShaderPrecompilerThreads() const;
+
+  float GetCustomAspectRatio() const { return (float)custom_aspect_width / custom_aspect_height; }
 };
 
 extern VideoConfig g_Config;

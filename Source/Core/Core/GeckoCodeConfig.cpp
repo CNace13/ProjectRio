@@ -186,9 +186,9 @@ std::vector<GeckoCode> LoadCodes(const Common::IniFile& globalIni, const Common:
     std::vector<std::string> lines;
     ini->GetLines("Gecko", &lines, false);
 
-    lines.erase(std::remove_if(lines.begin(), lines.end(),
-                               [](const auto& line) { return line.empty() || line[0] == '#'; }),
-                lines.end());
+    GeckoCode gcode;
+
+    std::erase_if(lines, [](const auto& line) { return line.empty() || line[0] == '#'; });
 
     ReadLines(gcodes, lines, ini == &localIni);
 
@@ -219,7 +219,7 @@ static std::string MakeGeckoCodeTitle(const GeckoCode& code)
 // used by the SaveGeckoCodes function
 static void SaveGeckoCode(std::vector<std::string>& lines, const GeckoCode& gcode)
 {
-  if (!gcode.user_defined)
+  if (!gcode.user_defined || gcode.built_in_code)
     return;
 
   lines.push_back(MakeGeckoCodeTitle(gcode));

@@ -140,7 +140,7 @@ private:
   bool m_was_unpaused = false;
 };
 
-bool Init(std::unique_ptr<BootParameters> boot, const WindowSystemInfo& wsi);
+bool Init(Core::System& system, std::unique_ptr<BootParameters> boot, const WindowSystemInfo& wsi);
 void Stop();
 void Shutdown();
 
@@ -163,7 +163,7 @@ bool IsHostThread();
 bool WantsDeterminism();
 
 // [NOT THREADSAFE] For use by Host only
-void SetState(State state);
+void SetState(State state, bool report_state_change = true);
 State GetState();
 
 void SaveScreenShot();
@@ -254,9 +254,10 @@ void SetTagSet(std::optional<TagSet> tagset, bool netplay);
 bool isTagSetActive(std::optional<bool> netplay = std::nullopt);
 bool isNetplay();
 std::optional<std::vector<std::string>> GetTagSetGeckoString();
+bool GameSupportsTagSets();
 
 // Helper function for the Gecko loader expansion
-std::optional<u32> getGameFreeMemory();
+std::optional<std::pair<u32,u32>> getGameFreeMemory();
 
 static const u32 aOpponentPort = 0x802EBF92;
 static const u32 aFielderPort = 0x802EBF94;

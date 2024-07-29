@@ -36,6 +36,7 @@ signals:
   void StartNetPlayPressed();
   void ViewGeckoCodes();
   void ViewLocalPlayers();
+  void DiscordPressed();
 
   void StepPressed();
   void StepOverPressed();
@@ -70,4 +71,5 @@ private:
   QAction* m_show_pc_action;
   QAction* m_set_pc_action;
   QAction* m_local_play_action;
+  QAction* m_discord_action;
 };
