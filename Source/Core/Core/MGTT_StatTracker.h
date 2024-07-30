@@ -141,7 +141,7 @@ constexpr auto pss_swing_criteria_0 = std::make_pair(0, eq(6));
 constexpr auto pss_postswing_criteria_1 = std::make_pair(1, not_(eq(8)));
 constexpr auto pss_postswing_criteria_0 = std::make_pair(0, eq(8));
 
-constexpr auto pss_posthole_criteria_0 = std::make_pair(0, or_(or_(eq(1), eq(10)), eq(3)));
+constexpr auto pss_posthole_criteria_0 = std::make_pair(0, or_(gt(8), lt(4)));
 
 // Shot
 static const u32 aShotNum_P1 = 0x806CB4FC;
