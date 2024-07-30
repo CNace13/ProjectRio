@@ -141,7 +141,7 @@ constexpr auto pss_swing_criteria_0 = std::make_pair(0, eq(6));
 constexpr auto pss_postswing_criteria_1 = std::make_pair(1, not_(eq(8)));
 constexpr auto pss_postswing_criteria_0 = std::make_pair(0, eq(8));
 
-constexpr auto pss_posthole_criteria_0 = std::make_pair(0, or_(eq(1), eq(10)));
+constexpr auto pss_posthole_criteria_0 = std::make_pair(0, or_(or_(eq(1), eq(10)), eq(3)));
 
 // Shot
 static const u32 aShotNum_P1 = 0x806CB4FC;
@@ -759,6 +759,10 @@ private:
             
             // Swing is over, record final stats
             if ((*rPlayerShotStatus_posthole)[*player_turn].isActive()){
+                auto player_shot_num = (*rPlayerShotNum)[*player_turn].getValue();
+                std::string shotName = getShotName(*player_turn, *player_shot_num);
+                std::string holeName = getHoleName(*rHoleNum->getValue(), *rHoleIndex->getValue());
+                logger << fmt::format("SWING_OVER | Player={}, HoleName={}, ShotStatus={}\n", *player_turn, holeName, *(*rPlayerShotStatus_posthole)[*player_turn].getValue());
                 rFinalScoreHoleTotal->run(guard);
                 rFinalScoreHolePutts->run(guard);
                 rFinalScoreHoleStrokes->run(guard);
