@@ -19,14 +19,14 @@ using u8 = uint8_t;
 using u16 = uint16_t;
 using u32 = uint32_t;
 
-template<typename T, u8 N, typename... StageCriteria>
+template<typename T, u8 Stages, typename... StageCriteria>
 class MemoryTracker {
     static_assert(std::is_same<T, u8>::value || std::is_same<T, u16>::value || 
                   std::is_same<T, u32>::value || std::is_same<T, float>::value,
                   "Unsupported type. Only u8, u16, u32, and float are allowed.");
 
     u32 address;
-    Pipeline<T, N> pipeline;
+    Pipeline<T, Stages> pipeline;
     std::tuple<StageCriteria...> stage_criteria;
 
     // std::vector<std::function<void()>> downstreamCallback;
@@ -176,7 +176,7 @@ public:
 
 //Sadly, I was not able to figure out how to implement this class so that it could be constucted
 //at compile time, so I am using vectors to hold all the run time info (though I could probably use arrays to be safer)
-//The orginal Array class can handle simple arrays at compile time, but for N-D arrays this class must be used
+//The orginal Array class can handle simple arrays at compile time, but for Stages-D arrays this class must be used
 template<typename T, uint8_t Stages, typename... Criteria>
 class MemoryTrackerNestedArray {
 private:

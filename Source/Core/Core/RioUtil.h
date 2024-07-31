@@ -16,8 +16,7 @@ namespace RioUtil {
     // Function to convert u32 to float
     float floatConverter(u32 in_value);
 
-    u32 genRand32();
-
+    uint64_t genRand64();
 
     enum class LogOutput {
         CONSOLE,
@@ -66,7 +65,7 @@ namespace RioUtil {
 
         void log(const std::string& message) {
             std::lock_guard<std::mutex> lock(mtx);
-            
+
             if (output == LogOutput::CONSOLE || output == LogOutput::BOTH) {
                 std::cout << message;
             }

@@ -135,8 +135,8 @@ static const u32 aPlayerShotStatus_P1 = 0x804ECE98;
 constexpr auto pss_preswing_criteria_1 = std::make_pair(1, eq(4));
 constexpr auto pss_preswing_criteria_0 = std::make_pair(0, eq(4));
 
-constexpr auto pss_swing_criteria_1 = std::make_pair(1, not_(eq(6)));
-constexpr auto pss_swing_criteria_0 = std::make_pair(0, eq(6));
+constexpr auto pss_swing_criteria_1 = std::make_pair(1, and_(not_(eq(7)), not_(eq(6))));
+constexpr auto pss_swing_criteria_0 = std::make_pair(0, or_(eq(7), eq(6)));
 
 constexpr auto pss_postswing_criteria_1 = std::make_pair(1, not_(eq(8)));
 constexpr auto pss_postswing_criteria_0 = std::make_pair(0, eq(8));
@@ -215,7 +215,7 @@ public:
     // Method to transition to a new MGTT_State
     void transitionTo(MGTT_State newState) {
         if (stateFunctions.find(newState) != stateFunctions.end()) {
-            logger << "Transitioning states: " << stateToString(currentState) << " -> " << stateToString(newState) << "\n";
+            logger << "  " << stateToString(currentState) << " -> " << stateToString(newState) << "\n";
             currentState = newState;
         } else {
             std::cerr << "Invalid MGTT_State transition!" << std::endl;
@@ -242,6 +242,10 @@ public:
         rioInfo.netplay = netplay_session;
     }
 
+    void setIsNetplayHost(bool isNetplayHost){
+        rioInfo.is_netplay_host = isNetplayHost;
+    }
+
     void setNetplayerUserInfo(std::map<int, LocalPlayers::LocalPlayers::Player> userInfo){
         rioInfo.rioUsers = userInfo;
         // rioInfo.netplay = true;
@@ -255,7 +259,14 @@ public:
     void clearTagSet() {
         rioInfo.tag_set_id_name = std::nullopt;
     }
-    void readLocalPlayers(int num_players, bool netplay);
+
+    std::optional<uint64_t> getGameID(){
+        return gameID;
+    }
+
+    // Only accept incoming GameID if netplay and not the host
+    void setGameID(uint64_t inGameID );
+    
 
     // Method to convert MGTT_State to string
     std::string stateToString(MGTT_State state) const {
@@ -268,6 +279,7 @@ public:
             case MGTT_State::SWING: return "SWING";
             case MGTT_State::SWING_OVER: return "SWING_OVER";
             case MGTT_State::ROUND_OVER: return "ROUND_OVER";
+            case MGTT_State::RESET: return "RESET";
             case MGTT_State::UNDEFINED: return "UNDEFINED";
             default: return "INVALID";
         }
@@ -350,6 +362,9 @@ private:
     const std::vector<uint32_t> sizes = {NUM_PLAYERS, NUM_HOLES};
     const std::vector<uint32_t> offsets = {PLAYER_OFFSET, HOLE_OFFSET};
 
+    // GameID
+    std::optional<uint64_t> gameID;
+
     // JSON Info
     std::unique_ptr<json> writer;
     std::unique_ptr<std::unordered_map<std::string, json>> holes; //Needs map to preserve data across entire round
@@ -399,6 +414,18 @@ private:
         return fmt::format("S{}_{}", playerNum, shotNum);
     }
 
+    bool shotExists(std::string holeName, std::string shotName){
+        // Check if the hole exists in the map
+        bool shotExists = false;
+        auto holeIt = shots->find(holeName);
+        if (holeIt != shots->end()) {
+            // Hole exists, now check if the shot exists in the inner map
+            auto shotIt = holeIt->second.find(shotName);
+            shotExists = (shotIt != holeIt->second.end());
+        }
+        return shotExists;
+    }
+
     void assembleFinalJson(std::unique_ptr<json>& writerRef) {
         json holesJson;
 
@@ -421,12 +448,20 @@ private:
         std::map<int, LocalPlayers::LocalPlayers::Player> rioUsers;
         std::optional<std::pair<int, std::string>> tag_set_id_name;
         bool netplay = false;
+        bool is_netplay_host = false;
     } rioInfo;
+
+    void readLocalPlayers(int num_players);
 
     // State Machine
     void initState(const Core::CPUThreadGuard& guard) {
         initMemoryTrackers();
         transitionTo(MGTT_State::MENU);
+
+        // Only generate a GameID if hosting netplay or playing locally. Nonhosts will get GameID from the host over netplay.
+        if (!rioInfo.netplay || rioInfo.is_netplay_host) {
+            gameID = RioUtil::genRand64();
+        }
     }
 
     void menuState(const Core::CPUThreadGuard& guard) {
@@ -453,18 +488,21 @@ private:
             rWedges->run(guard);
 
             if (rPlayerCount->isActive() && rGameMode->isActive()) {
-                u32 gameId = RioUtil::genRand32();
-                initWriter(std::to_string(gameId));
+                if (!gameID){
+                    logger << "ERROR: gameID not set\n";
+                }
+                initWriter(std::to_string(*gameID));
 
                 //Read start time
                 std::time_t unix_time = std::time(nullptr);
                 std::asctime(std::localtime(&unix_time));
 
+
                 std::string tagSet = rioInfo.tag_set_id_name.has_value() ? (*rioInfo.tag_set_id_name).second : "null";
-                logger << fmt::format("ROUND_INFO | GameID={}, GameMode={}, TagSet={}, CourseID={}, RoundFormat={}, PlayerCount={}\n", gameId, *rGameMode->getValue(14), tagSet, 
+                logger << fmt::format("ROUND_INFO | GameID={:x}, GameMode={}, TagSet={}, CourseID={}, RoundFormat={}, PlayerCount={}\n", *gameID, *rGameMode->getValue(14), tagSet, 
                                       *rCourseId->getValue(14), *rRoundFormat->getValue(14), *rPlayerCount->getValue());
 
-                // logger << "RoundInfo | GameID=" <<  std::to_string(gameId) << "\n";
+                // logger << "RoundInfo | GameID=" <<  std::to_string(gameID) << "\n";
                 // logger << "RoundInfo | Start time=" <<  std::asctime(std::localtime(&unix_time)) << "\n";
                 // logger << "RoundInfo | TagSetID=" << (rioInfo.tag_set_id_name.has_value() ? std::to_string((*rioInfo.tag_set_id_name).first) : "null") << "\n";
                 // logger << "RoundInfo | TagSet=" << (rioInfo.tag_set_id_name.has_value() ? (*rioInfo.tag_set_id_name).second : "null") << "\n";
@@ -474,7 +512,7 @@ private:
                 // logger << "RoundInfo | GreenType=" << std::to_string(*rGreenType->getValue(14)) << "\n";
                 // logger << "RoundInfo | Tees=" << std::to_string(*rTees->getValue(14)) << "\n";
                 // logger << "RoundInfo | PlayerCount=" << std::to_string(*rPlayerCount->getValue()) << "\n";
-                (*writer)["GameId"] = gameId;
+                (*writer)["GameID"] = fmt::format("{:x}", *gameID);
                 (*writer)["StartTime"] = std::asctime(std::localtime(&unix_time));
                 (*writer)["TagSetID"] = rioInfo.tag_set_id_name.has_value() ? std::to_string((*rioInfo.tag_set_id_name).first) : "null";
                 (*writer)["TagSet"] = rioInfo.tag_set_id_name.has_value() ? (*rioInfo.tag_set_id_name).second : "null";
@@ -486,7 +524,7 @@ private:
                 (*writer)["PlayerCount"] = *rPlayerCount->getValue();
 
                 // Get User info
-                readLocalPlayers(*rPlayerCount->getValue(), rioInfo.netplay);
+                readLocalPlayers(*rPlayerCount->getValue());
 
                 // Process users
                 std::vector<json> golfers;
@@ -545,15 +583,6 @@ private:
         rPin2->run(guard);
         rPar->run(guard);
 
-        // logger << "  HoleInfo | CurrentHole=" << std::to_string(*rHoleNum->getValue()) << "\n";
-        // logger << "  HoleInfo | CurrentHole=" << std::to_string(*rHoleIndex->getValue()) << "\n";
-        // logger << "  HoleInfo | Par=" << std::to_string(*rWindRads->getValue()) << "\n";
-        // logger << "  HoleInfo | WindRads=" << std::to_string(*rWindRads->getValue()) << "\n";
-        // logger << "  HoleInfo | WindSpeed=" << std::to_string(*rWindSpeed->getValue()) << "\n";
-        // logger << "  HoleInfo | RainBool=" << std::to_string(*rRainBool->getValue()) << "\n";
-        // logger << "  HoleInfo | Pin=" << std::to_string(*rPin->getValue()) << "\n";
-        // logger << "  HoleInfo | Pin2=" << std::to_string(*rPin2->getValue()) << "\n";
-
         std::string holeName = getHoleName(*rHoleNum->getValue(), *rHoleIndex->getValue());
         logger << fmt::format("\nHOLE_INFO | HoleIndex={}, HoleNum={}\n", *rHoleIndex->getValue(), *rHoleNum->getValue());
 
@@ -604,8 +633,7 @@ private:
         if (player_turn && (*player_turn <= 3)) {
             (*rPlayerShotStatus_swing)[*player_turn].run(guard);
             (*rPlayerShotStatus_postswing)[*player_turn].run(guard);
-            (*rHoleDone)[*player_turn].run(guard);
-            
+            (*rHoleDone)[*player_turn].run(guard);            
             
             // Has golfer swung?
             if ((*rPlayerShotStatus_swing)[*player_turn].isActive()){
@@ -633,24 +661,6 @@ private:
                 rImpactPoint_X->run(guard);
                 rImpactPoint_Y->run(guard);
                 rSpin->run(guard);
-                
-                // logger << "  ShotInfo | ShotNum=" << std::to_string(*(*rPlayerShotNum)[*player_turn].getValue()) << "\n";
-                // logger << "  ShotInfo | ShotInfo=" << std::to_string(*rShotType->getValue()) << "\n";
-                // logger << "  ShotInfo | ClubType=" << std::to_string(*rClubType->getValue()) << "\n";
-                // logger << "  ShotInfo | PowerMeterSetting=" << std::to_string(*rPowerMeterSetting->getValue()) << "\n";
-                // logger << "  ShotInfo | PowerMeterSettingCopy=" << std::to_string(*rPowerMeterSettingCopy->getValue()) << "\n";
-                // logger << "  ShotInfo | PowerMeterMaximum=" << std::to_string(*rPowerMeterMaximum->getValue()) << "\n";
-                // logger << "  ShotInfo | PowerMeterActual=" << std::to_string(*rPowerMeterActual->getValue()) << "\n";
-                // logger << "  ShotInfo | PowerMeterActualCopy=" << std::to_string(*rPowerMeterActualCopy->getValue()) << "\n";
-                // logger << "  ShotInfo | ShotAccuracy=" << std::to_string(*rShotAccuracy->getValue()) << "\n";
-                // logger << "  ShotInfo | ShotAccuracy2=" << std::to_string(*rShotAccuracy2->getValue()) << "\n";
-                // logger << "  ShotInfo | ManualVsAuto=" << std::to_string(*rManualVsAuto->getValue()) << "\n";
-                // logger << "  ShotInfo | AimAngleRadians=" << std::to_string(*rAimAngleRadians->getValue()) << "\n";
-                // logger << "  ShotInfo | ImpactPoint_Y_Preshot=" << std::to_string(*rImpactPoint_Y_Preshot->getValue()) << "\n";
-                // logger << "  ShotInfo | ImpactPoint_X_Preshot=" << std::to_string(*rImpactPoint_X_Preshot->getValue()) << "\n";
-                // logger << "  ShotInfo | ImpactPoint_X=" << std::to_string(*rImpactPoint_X->getValue()) << "\n";
-                // logger << "  ShotInfo | ImpactPoint_Y=" << std::to_string(*rImpactPoint_Y->getValue()) << "\n";
-                // logger << "  ShotInfo | Spin=" << std::to_string(*rSpin->getValue()) << "\n";
 
                 json shot;
                 shot["ShotNum"] = *player_shot_num;
@@ -685,6 +695,10 @@ private:
                 rBallPos_Z->run(guard);
                 rPowerShotCount->run(guard);
 
+                if (!shotExists(holeName, shotName)){
+                    logger << "ERROR: No shot associated with this swing result\n";
+                }
+
                 json& shot = (*shots)[holeName][shotName];
                 shot["BallPos_X"] = *rBallPos_X->getValue();
                 shot["BallPos_Y"] = *rBallPos_Y->getValue();
@@ -713,19 +727,11 @@ private:
                 rLieRngSeed->run(guard);
                 rShotDistance->run(guard);
                 rPowerShotCount->run(guard);
-                
-                // logger << "  Shot Result | BallPos_X=" << std::to_string(*rBallPos_X->getValue()) << "\n";
-                // logger << "  Shot Result | BallPos_Y=" << std::to_string(*rBallPos_Y->getValue()) << "\n";
-                // logger << "  Shot Result | BallPos_Z=" << std::to_string(*rBallPos_Z->getValue()) << "\n";
-                // logger << "  Shot Result | DistanceToHole=" << std::to_string(*rDistanceToHole->getValue()) << "\n";
-                // logger << "  Shot Result | LieType=" << std::to_string(*rLieType->getValue()) << "\n";
-                // logger << "  Shot Result | LieQuality=" << std::to_string(*rLieQuality->getValue()) << "\n";
-                // logger << "  Shot Result | LieRngRange=" << std::to_string(*rLieRngRange->getValue()) << "\n";
-                // logger << "  Shot Result | LieRng=" << std::to_string(*rLieRng->getValue()) << "\n";
-                // logger << "  Shot Result | LieRngSeed=" << std::to_string(*rLieRngSeed->getValue()) << "\n";
-                // logger << "  Shot Result | PowerShotCount=" << std::to_string( *(*rPowerShotCount)[*player_turn].getValue()) << "\n";
-                // logger << "  Shot Result | rShotDistance=" << std::to_string(*rShotDistance->getValue()) << "\n";
 
+                if (!shotExists(holeName, shotName)){
+                    logger << "ERROR: No shot associated with this swing result\n";
+                }
+                
                 json& shot = (*shots)[holeName][shotName];
                 shot["BallPos_X"] = *rBallPos_X->getValue();
                 shot["BallPos_Y"] = *rBallPos_Y->getValue();
@@ -814,6 +820,7 @@ private:
         // Reset the writer
         resetWriter();
         resetMemoryTrackers();
+        gameID = std::nullopt;
         logger << "\n\n ==== NEW GAME ====\n\n";
         transitionTo(MGTT_State::INIT);
     }

@@ -1,8 +1,8 @@
 #include "Core/MGTT_StatTracker.h"
 #include "Core/NetPlayClient.h"
 
-void MGTT_StatTracker::readLocalPlayers(int num_players, bool netplay){ //TODO - Assumes all human players, each with own port
-    if (netplay){
+void MGTT_StatTracker::readLocalPlayers(int num_players){ //TODO - Assumes all human players, each with own port
+    if (rioInfo.netplay){
         rioInfo.rioUsers = NetPlay::NetPlayClient::getNetplayerUserInfo();
       return;
     }
@@ -31,6 +31,12 @@ void MGTT_StatTracker::readLocalPlayers(int num_players, bool netplay){ //TODO -
     logger << fmt::format("readLocalPlayers m_local_player_2, username={}\n", LocalPlayers::m_local_player_2.GetUsername());
     logger << fmt::format("readLocalPlayers m_local_player_3, username={}\n", LocalPlayers::m_local_player_3.GetUsername());
     logger << fmt::format("readLocalPlayers m_local_player_4, username={}\n", LocalPlayers::m_local_player_4.GetUsername());
+}
+
+void MGTT_StatTracker::setGameID(uint64_t inGameID){
+    if (rioInfo.netplay && !rioInfo.is_netplay_host) {
+        gameID = inGameID;
+    }
 }
 
 void MGTT_StatTracker::resetMemoryTrackers(){

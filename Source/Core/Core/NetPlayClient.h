@@ -203,6 +203,7 @@ public:
   static u32 sGetPlayersMaxPing();
   static std::map<int, LocalPlayers::LocalPlayers::Player> getNetplayerUserInfo();
   static void SendGameID(u32 gameId);
+  static void SendGameID64(uint64_t gameId);
   static bool isGolfMode();
   u32 maxPing;
 

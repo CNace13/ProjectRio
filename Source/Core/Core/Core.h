@@ -248,7 +248,8 @@ int GetNextGolferID();
 
 using namespace Tag;
 
-void SetGameID(u32 gameID);
+void SetGameID(uint64_t gameID);
+void SetIsNetplayHost(bool isHost);
 std::optional<TagSet> GetActiveTagSet(bool netplay);
 void SetTagSet(std::optional<TagSet> tagset, bool netplay);
 bool isTagSetActive(std::optional<bool> netplay = std::nullopt);

@@ -127,7 +127,8 @@ static std::atomic<bool> s_stop_frame_step;
 
 static std::optional<TagSet> tagset_local = std::nullopt;
 static std::optional<TagSet> tagset_netplay = std::nullopt;
-static std::optional<u32> rio_game_id = std::nullopt;
+static std::optional<uint64_t> rio_game_id = std::nullopt;
+static std::optional<bool> is_netplay_host = std::nullopt;
 static bool previousContactMade = false;
 static bool runNetplayGameFunctions = true;
 
@@ -266,6 +267,11 @@ void RunRioFunctions(const Core::CPUThreadGuard& guard)
     if (s_mgtt_stat_tracker && (frame > 300))
     {
       s_mgtt_stat_tracker->run(guard);
+      //Only send GameID if netplay and hosting
+      if (NetPlay::IsNetPlayRunning() && is_netplay_host.has_value() 
+          && *is_netplay_host && s_mgtt_stat_tracker->getGameID()) {
+        NetPlay::NetPlayClient::SendGameID64(*(s_mgtt_stat_tracker->getGameID()));
+      }
     }
   }
 
@@ -857,6 +863,13 @@ bool Init(Core::System& system, std::unique_ptr<BootParameters> boot, const Wind
 
     // The Emu Thread was stopped, synchronize with it.
     s_emu_thread.join();
+  }
+
+  if (s_stat_tracker) {
+    s_stat_tracker.reset();
+  }
+  if (s_mgtt_stat_tracker) {
+    s_mgtt_stat_tracker.reset();
   }
 
   // Drain any left over jobs
@@ -1775,11 +1788,21 @@ CPUThreadGuard::~CPUThreadGuard()
     PauseAndLock(m_system, false, m_was_unpaused);
 }
 
-void SetGameID(u32 gameID)
+void SetIsNetplayHost(bool isHost){
+  is_netplay_host = isHost;
+  if (s_mgtt_stat_tracker){
+    s_mgtt_stat_tracker->setIsNetplayHost(isHost);
+  }
+}
+
+void SetGameID(uint64_t gameID)
 {
   rio_game_id = gameID;
   if (s_stat_tracker){
     s_stat_tracker->setGameID(*rio_game_id);
+  }
+  if (s_mgtt_stat_tracker){
+    s_mgtt_stat_tracker->setGameID(*rio_game_id);
   }
 }
 
@@ -1804,7 +1827,7 @@ void SetTagSet(std::optional<TagSet> tagset, bool netplay)
     else{ s_stat_tracker->clearTagSetId(NetPlay::IsNetPlayRunning()); }
   }
   if (s_mgtt_stat_tracker){
-    s_mgtt_stat_tracker->setTagSet(*tag_set);
+    s_mgtt_stat_tracker->setTagSet(tag_set);
   }
 }
 

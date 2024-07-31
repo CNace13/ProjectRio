@@ -1007,6 +1007,8 @@ void NetPlayClient::OnStartGame(sf::Packet& packet)
       packet >> m_net_settings.sram[i];
 
     m_net_settings.is_hosting = m_local_player->IsHost();
+
+    Core::SetIsNetplayHost(m_local_player->IsHost());
   }
 
   m_dialog->OnMsgStartGame();
@@ -1669,7 +1671,7 @@ void NetPlayClient::OnChecksumMsg(sf::Packet& packet)
 
 void NetPlayClient::OnGameIDMsg(sf::Packet& packet)
 {
-  u32 gameID;
+  uint64_t gameID;
   packet >> gameID;
 
   Core::SetGameID(gameID);
@@ -2672,6 +2674,14 @@ void NetPlayClient::SendGameID(u32 gameId)
   if (netplay_client->m_local_player->pid != netplay_client->m_current_golfer)
     return;
 
+  sf::Packet packet;
+  packet << MessageID::GameID;
+  packet << gameId;
+  netplay_client->SendAsync(std::move(packet));
+}
+
+void NetPlayClient::SendGameID64(uint64_t gameId)
+{
   sf::Packet packet;
   packet << MessageID::GameID;
   packet << gameId;

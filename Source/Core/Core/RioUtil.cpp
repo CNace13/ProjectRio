@@ -18,7 +18,7 @@ namespace RioUtil {
     }
 
 
-    u32 genRand32() {
+    uint64_t genRand64() {
         // Create a random device to seed the random number generator
         std::random_device rd;
 
@@ -26,7 +26,7 @@ namespace RioUtil {
         std::mt19937_64 gen(rd());
 
         // Define a uniform distribution for uint32_t
-        std::uniform_int_distribution<uint32_t> dist(0, UINT32_MAX);
+        std::uniform_int_distribution<uint64_t> dist(0, UINT64_MAX);
 
         // Generate and return a random uint32_t
         return dist(gen);
