@@ -310,6 +310,13 @@ public:
             logger << fmt::format("DEBUG curr ShotStatus={:02x} | {:02x} | {:02x} | {:02x} ShotPhase={:02x}\n", *(*rPlayerShotStatusDebug)[0].getValue(0), *(*rPlayerShotStatusDebug)[1].getValue(0), *(*rPlayerShotStatusDebug)[2].getValue(0), *(*rPlayerShotStatusDebug)[3].getValue(0), *rShotPhaseDebug->getValue(0));
         }
 
+        rIsGolfRoundDebug->run(guard);
+        if (rIsGolfRoundDebug->isActive()){
+            logger << fmt::format("DEBUG frame={}\n", frame);
+            logger << fmt::format("DEBUG | prev rIsGolfRound={:02x}\n", *rIsGolfRoundDebug->getValue(1));
+            logger << fmt::format("DEBUG | curr rIsGolfRound={:02x}\n", *rIsGolfRoundDebug->getValue(0));
+        }
+
         // rPlayerCountDebug->run(guard);
         // if (rPlayerCountDebug->isActive()){
         //     logger << fmt::format("DEBUG frame={}\n", frame);
@@ -324,37 +331,30 @@ public:
         // }
 
         
-        rGameModeDebug->run(guard);
-        if (rGameModeDebug->isActive()){
-            logger << fmt::format("DEBUG frame={}\n", frame);
-            logger << fmt::format("DEBUG | prev rGameMode={:02x}\n", *rGameModeDebug->getValue(1));
-            logger << fmt::format("DEBUG | curr rGameMode={:02x}\n", *rGameModeDebug->getValue(0));
-        }
-        rRoundFormatDebug->run(guard);
-        if (rRoundFormatDebug->isActive()){
-            logger << fmt::format("DEBUG frame={}\n", frame);
-            logger << fmt::format("DEBUG | prev rRoundFormat={:02x}\n", *rRoundFormatDebug->getValue(1));
-            logger << fmt::format("DEBUG | curr rRoundFormat={:02x}\n", *rRoundFormatDebug->getValue(0));
-        }
-        rCourseDebug->run(guard);
-        if (rCourseDebug->isActive()){
-            logger << fmt::format("DEBUG frame={}\n", frame);
-            logger << fmt::format("DEBUG | prev rCourse={:02x}\n", *rCourseDebug->getValue(1));
-            logger << fmt::format("DEBUG | curr rCourse={:02x}\n", *rCourseDebug->getValue(0));
-        }
-        rIsGolfRoundDebug->run(guard);
-        if (rIsGolfRoundDebug->isActive()){
-            logger << fmt::format("DEBUG frame={}\n", frame);
-            logger << fmt::format("DEBUG | prev rIsGolfRound={:02x}\n", *rIsGolfRoundDebug->getValue(1));
-            logger << fmt::format("DEBUG | curr rIsGolfRound={:02x}\n", *rIsGolfRoundDebug->getValue(0));
-        }
-
-        rWoodsDebug->run(guard);
-        if ((*rWoodsDebug)[0].isActive() || (*rWoodsDebug)[1].isActive() || (*rWoodsDebug)[2].isActive() || (*rWoodsDebug)[3].isActive()){
-            logger << fmt::format("DEBUG frame={}\n", frame);
-            logger << fmt::format("DEBUG prev Woods={:02x} | {:02x} | {:02x} | {:02x}\n", *(*rWoodsDebug)[0].getValue(1), *(*rWoodsDebug)[1].getValue(1), *(*rWoodsDebug)[2].getValue(1), *(*rWoodsDebug)[3].getValue(1));
-            logger << fmt::format("DEBUG curr Woods={:02x} | {:02x} | {:02x} | {:02x}\n", *(*rWoodsDebug)[0].getValue(0), *(*rWoodsDebug)[1].getValue(0), *(*rWoodsDebug)[2].getValue(0), *(*rWoodsDebug)[3].getValue(0));
-        }
+        // rGameModeDebug->run(guard);
+        // if (rGameModeDebug->isActive()){
+        //     logger << fmt::format("DEBUG frame={}\n", frame);
+        //     logger << fmt::format("DEBUG | prev rGameMode={:02x}\n", *rGameModeDebug->getValue(1));
+        //     logger << fmt::format("DEBUG | curr rGameMode={:02x}\n", *rGameModeDebug->getValue(0));
+        // }
+        // rRoundFormatDebug->run(guard);
+        // if (rRoundFormatDebug->isActive()){
+        //     logger << fmt::format("DEBUG frame={}\n", frame);
+        //     logger << fmt::format("DEBUG | prev rRoundFormat={:02x}\n", *rRoundFormatDebug->getValue(1));
+        //     logger << fmt::format("DEBUG | curr rRoundFormat={:02x}\n", *rRoundFormatDebug->getValue(0));
+        // }
+        // rCourseDebug->run(guard);
+        // if (rCourseDebug->isActive()){
+        //     logger << fmt::format("DEBUG frame={}\n", frame);
+        //     logger << fmt::format("DEBUG | prev rCourse={:02x}\n", *rCourseDebug->getValue(1));
+        //     logger << fmt::format("DEBUG | curr rCourse={:02x}\n", *rCourseDebug->getValue(0));
+        // }
+        // rWoodsDebug->run(guard);
+        // if ((*rWoodsDebug)[0].isActive() || (*rWoodsDebug)[1].isActive() || (*rWoodsDebug)[2].isActive() || (*rWoodsDebug)[3].isActive()){
+        //     logger << fmt::format("DEBUG frame={}\n", frame);
+        //     logger << fmt::format("DEBUG prev Woods={:02x} | {:02x} | {:02x} | {:02x}\n", *(*rWoodsDebug)[0].getValue(1), *(*rWoodsDebug)[1].getValue(1), *(*rWoodsDebug)[2].getValue(1), *(*rWoodsDebug)[3].getValue(1));
+        //     logger << fmt::format("DEBUG curr Woods={:02x} | {:02x} | {:02x} | {:02x}\n", *(*rWoodsDebug)[0].getValue(0), *(*rWoodsDebug)[1].getValue(0), *(*rWoodsDebug)[2].getValue(0), *(*rWoodsDebug)[3].getValue(0));
+        // }
     }
 
 private:
