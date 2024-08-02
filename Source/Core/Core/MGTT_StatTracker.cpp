@@ -110,6 +110,12 @@ void MGTT_StatTracker::resetMemoryTrackers(){
 
     rShotPhaseDebug.reset();
     rPlayerShotStatusDebug.reset();
+    rPlayerCountDebug.reset();
+    rGameModeDebug.reset();
+    rRoundFormatDebug.reset();
+    rCourseDebug.reset();
+    rIsGolfRoundDebug.reset();
+    rWoodsDebug.reset();
 
     initMemoryTrackers();
 }
@@ -118,20 +124,20 @@ void MGTT_StatTracker::initMemoryTrackers(){
     rIsGolfRound = std::make_unique<MemoryTracker<u8, 2, decltype(bool_hi_criteria_0), decltype(bool_hi_criteria_1)>>(aIsGolfRound, bool_hi_criteria_0, bool_hi_criteria_1);
     rPlayerPorts = std::make_unique<MemoryTracker<u32, 1>>(aPlayerPorts);
     rPlayerTurn = std::make_unique<MemoryTracker<u8, 1>>(aPlayerTurn);
-    rGameMode = std::make_unique<MemoryTracker<u8, 16, decltype(game_mode_criteria_0)>>(aGameMode, game_mode_criteria_0);
-    rMenuScene = std::make_unique<MemoryTracker<u8, 16, decltype(return_to_menu_1), decltype(return_to_menu_0)>>(aMenuScene, return_to_menu_1, return_to_menu_0);
-    rCourseId = std::make_unique<MemoryTracker<u8, 16>>(aCourseId);
-    rRoundFormat = std::make_unique<MemoryTracker<u8, 16, decltype(round_format_criteria_0), decltype(round_format_criteria_1)>>(aRoundFormat, round_format_criteria_0, round_format_criteria_1);
-    rGreenType = std::make_unique<MemoryTracker<u8, 16>>(aGreenType);
-    rTees = std::make_unique<MemoryTracker<u8, 16>>(aTees);
-    rPlayerCount = std::make_unique<MemoryTracker<u8, 2, decltype(bool_hi_criteria_0), decltype(bool_hi_criteria_1)>>(aPlayerCount, bool_hi_criteria_0, bool_hi_criteria_1);
-    rStarredAtMenu = std::make_unique<MemoryTrackerArray<u32, 16, 4>>(aStarredAtMenu_P1, 0x4);
-    rHandicapsEnabled = std::make_unique<MemoryTrackerArray<u32, 16, 4>>(aHandicapsEnabled_P1, 0x4);
-    rSimulationLine = std::make_unique<MemoryTrackerArray<u32, 16, 4>>(aSimulationLine_P1, 0x4);
-    rMulligans = std::make_unique<MemoryTrackerArray<u32, 16, 4>>(aMulligans_P1, 0x4);
-    rHandicapTees = std::make_unique<MemoryTrackerArray<u32, 16, 4>>(aHandicapTees_P1, 0x4);
-    rCharId = std::make_unique<MemoryTrackerArray<u32, 16, 4>>(aCharIdMenu_P1, 0x4);
-    rHandedness = std::make_unique<MemoryTrackerArray<u32, 16, 4>>(aHandednessMenu_P1, 0x4);
+    rGameMode = std::make_unique<MemoryTracker<u8, 25, decltype(game_mode_criteria_0)>>(aGameMode, game_mode_criteria_0);
+    rMenuScene = std::make_unique<MemoryTracker<u8, 25, decltype(return_to_menu_1), decltype(return_to_menu_0)>>(aMenuScene, return_to_menu_1, return_to_menu_0);
+    rCourseId = std::make_unique<MemoryTracker<u8, 25>>(aCourseId);
+    rRoundFormat = std::make_unique<MemoryTracker<u8, 25, decltype(round_format_criteria_0), decltype(round_format_criteria_1)>>(aRoundFormat, round_format_criteria_0, round_format_criteria_1);
+    rGreenType = std::make_unique<MemoryTracker<u8, 25>>(aGreenType);
+    rTees = std::make_unique<MemoryTracker<u8, 25>>(aTees);
+    rPlayerCount = std::make_unique<MemoryTracker<u8, 9, decltype(player_count_criteria_0), decltype(player_count_criteria_6), decltype(player_count_criteria_7)>>(aPlayerCount, player_count_criteria_0, player_count_criteria_6, player_count_criteria_7);
+    rStarredAtMenu = std::make_unique<MemoryTrackerArray<u32, 25, 4>>(aStarredAtMenu_P1, 0x4);
+    rHandicapsEnabled = std::make_unique<MemoryTrackerArray<u32, 25, 4>>(aHandicapsEnabled_P1, 0x4);
+    rSimulationLine = std::make_unique<MemoryTrackerArray<u32, 25, 4>>(aSimulationLine_P1, 0x4);
+    rMulligans = std::make_unique<MemoryTrackerArray<u32, 25, 4>>(aMulligans_P1, 0x4);
+    rHandicapTees = std::make_unique<MemoryTrackerArray<u32, 25, 4>>(aHandicapTees_P1, 0x4);
+    rCharId = std::make_unique<MemoryTrackerArray<u32, 25, 4>>(aCharIdMenu_P1, 0x4);
+    rHandedness = std::make_unique<MemoryTrackerArray<u32, 25, 4>>(aHandednessMenu_P1, 0x4);
     rWoods = std::make_unique<MemoryTrackerArray<u8, 1, 4>>(aWoodsMenu_P1, 0x4);
     rIrons = std::make_unique<MemoryTrackerArray<u8, 1, 4>>(aIronsMenu_P1, 0x4);
     rWedges = std::make_unique<MemoryTrackerArray<u8, 1, 4>>(aWedgesMenu_P1, 0x4);
@@ -182,6 +188,13 @@ void MGTT_StatTracker::initMemoryTrackers(){
     rFinalScoreHoleStrokes = std::make_unique<MemoryTrackerNestedArray<u8, 1>>(aFinalScoreHoleStrokes, sizes, offsets);
 
     // Debug
+    rPlayerCountDebug = std::make_unique<MemoryTracker<u8, 8, decltype(debug_criteria)>>(aPlayerCount, debug_criteria);
     rShotPhaseDebug = std::make_unique<MemoryTracker<u8, 2, decltype(sp_debug_criteria_0)>>(aShotPhase, sp_debug_criteria_0);
-    rPlayerShotStatusDebug = std::make_unique<MemoryTrackerArray<u8, 2, 4, decltype(pss_debug_criteria_0)>>(aPlayerShotStatus_P1, 0x5204, pss_debug_criteria_0);
+    rPlayerShotStatusDebug = std::make_unique<MemoryTrackerArray<u32, 2, 4, decltype(pss_debug_criteria_0)>>(aPlayerShotStatus_P1, 0x5204, pss_debug_criteria_0);
+
+    rGameModeDebug    = std::make_unique<MemoryTracker<u8, 2, decltype(debug_criteria)>>(aGameMode, debug_criteria);
+    rRoundFormatDebug = std::make_unique<MemoryTracker<u8, 2, decltype(debug_criteria)>>(aRoundFormat, debug_criteria);
+    rCourseDebug      = std::make_unique<MemoryTracker<u8, 2, decltype(debug_criteria)>>(aCourseId, debug_criteria);
+    rIsGolfRoundDebug = std::make_unique<MemoryTracker<u8, 2, decltype(debug_criteria)>>(aIsGolfRound, debug_criteria);
+    rWoodsDebug = std::make_unique<MemoryTrackerArray<u8, 2, 4, decltype(debug_criteria)>>(aWoodsMenu_P1, 0x4, debug_criteria);
 }

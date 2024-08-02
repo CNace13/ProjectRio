@@ -35,6 +35,12 @@
 #include <nlohmann/json.hpp>
 using json = nlohmann::json;
 
+// TODOs
+//   Add extra check for menu scene to prevent tracker from running when game idles and displays demo
+//   Fix timing of club memory reads
+//   Check netplay game id, users, hosting
+//   Check doubles
+
 namespace Tag {
 class TagSet;
 }
@@ -87,8 +93,12 @@ constexpr auto round_format_criteria_0 = std::make_pair(0, eq(5));
 static const u32 aGreenType = 0x8044bd9b;
 static const u32 aTees = 0x8044afe3;
 static const u32 aPlayerCount = 0x804E68FA;
-constexpr auto player_count_criteria_1 = std::make_pair(1, eq(0));
+
+constexpr auto player_count_criteria_7 = std::make_pair(7, eq(0));
+constexpr auto player_count_criteria_6 = std::make_pair(6, eq(1));
 constexpr auto player_count_criteria_0 = std::make_pair(0, or_(or_(eq(1), eq(2)), or_(eq(4), eq(3))));
+
+constexpr auto debug_criteria = std::make_pair(0, neq_stage<u8>(1));
 
 static const u32 aStarredAtMenu_P1 = 0x8044BA68;
 
@@ -110,7 +120,7 @@ static const u32 aHandednessMenu_P1 = 0x8044BA90;
 
 // Clubs - InGame
 static const u32 aWoodsMenu_P1 = 0x8017602C;
-static const u32 aIronsMenu_P1 = aIronsMenu_P1;
+static const u32 aIronsMenu_P1 = 0x8017602D;
 static const u32 aWedgesMenu_P1 = 0x8017602E;
 
 // Hole Addrs
@@ -168,7 +178,7 @@ static const u32 aSpin = 0x804ecd4c;
 
 
 // Lie/PostShot
-static const u32 aPowerShotCount_P1 = 0x804ECE7C;
+static const u32 aPowerShotCount_P1 = 0x804F2070;
 static const u32 aHoleDone_P1 = 0x804ECE7C;
 static const u32 aBallPos_X = 0x805DC0B0;
 static const u32 aBallPos_Y = 0x805DC0C0;
@@ -289,7 +299,7 @@ public:
         }
     }
 
-    void debugShotStatus(const Core::CPUThreadGuard& guard)
+    void debugMemoryTrackers(const Core::CPUThreadGuard& guard)
     {
         rShotPhaseDebug->run(guard);
         rPlayerShotStatusDebug->run(guard);
@@ -297,7 +307,53 @@ public:
         if ((*rPlayerShotStatusDebug)[0].isActive() || (*rPlayerShotStatusDebug)[1].isActive() || (*rPlayerShotStatusDebug)[2].isActive() || (*rPlayerShotStatusDebug)[3].isActive() || rShotPhaseDebug->isActive()){
             logger << fmt::format("DEBUG frame={}\n", frame);
             logger << fmt::format("DEBUG prev ShotStatus={:02x} | {:02x} | {:02x} | {:02x} ShotPhase={:02x}\n", *(*rPlayerShotStatusDebug)[0].getValue(1), *(*rPlayerShotStatusDebug)[1].getValue(1), *(*rPlayerShotStatusDebug)[2].getValue(1), *(*rPlayerShotStatusDebug)[3].getValue(1), *rShotPhaseDebug->getValue(1));
-            logger << fmt::format("DEBUG curr ShotStatus={:02x} | {:02x} | {:02x} | {:02x} ShotPhase={:02x}\n", *(*rPlayerShotStatusDebug)[0].getValue(0), *(*rPlayerShotStatusDebug)[1].getValue(0), *(*rPlayerShotStatusDebug)[2].getValue(0), *(*rPlayerShotStatusDebug)[0].getValue(1), *rShotPhaseDebug->getValue(0));
+            logger << fmt::format("DEBUG curr ShotStatus={:02x} | {:02x} | {:02x} | {:02x} ShotPhase={:02x}\n", *(*rPlayerShotStatusDebug)[0].getValue(0), *(*rPlayerShotStatusDebug)[1].getValue(0), *(*rPlayerShotStatusDebug)[2].getValue(0), *(*rPlayerShotStatusDebug)[3].getValue(0), *rShotPhaseDebug->getValue(0));
+        }
+
+        // rPlayerCountDebug->run(guard);
+        // if (rPlayerCountDebug->isActive()){
+        //     logger << fmt::format("DEBUG frame={}\n", frame);
+        //     logger << fmt::format("DEBUG {} PlayerCount={:02x}\n", 7, *rPlayerCountDebug->getValue(7));
+        //     logger << fmt::format("DEBUG {} PlayerCount={:02x}\n", 6, *rPlayerCountDebug->getValue(6));
+        //     logger << fmt::format("DEBUG {} PlayerCount={:02x}\n", 5, *rPlayerCountDebug->getValue(5));
+        //     logger << fmt::format("DEBUG {} PlayerCount={:02x}\n", 4, *rPlayerCountDebug->getValue(4));
+        //     logger << fmt::format("DEBUG {} PlayerCount={:02x}\n", 3, *rPlayerCountDebug->getValue(3));
+        //     logger << fmt::format("DEBUG {} PlayerCount={:02x}\n", 2, *rPlayerCountDebug->getValue(2));
+        //     logger << fmt::format("DEBUG {} PlayerCount={:02x}\n", 1, *rPlayerCountDebug->getValue(1));
+        //     logger << fmt::format("DEBUG {} PlayerCount={:02x}\n", 0, *rPlayerCountDebug->getValue(0));
+        // }
+
+        
+        rGameModeDebug->run(guard);
+        if (rGameModeDebug->isActive()){
+            logger << fmt::format("DEBUG frame={}\n", frame);
+            logger << fmt::format("DEBUG | prev rGameMode={:02x}\n", *rGameModeDebug->getValue(1));
+            logger << fmt::format("DEBUG | curr rGameMode={:02x}\n", *rGameModeDebug->getValue(0));
+        }
+        rRoundFormatDebug->run(guard);
+        if (rRoundFormatDebug->isActive()){
+            logger << fmt::format("DEBUG frame={}\n", frame);
+            logger << fmt::format("DEBUG | prev rRoundFormat={:02x}\n", *rRoundFormatDebug->getValue(1));
+            logger << fmt::format("DEBUG | curr rRoundFormat={:02x}\n", *rRoundFormatDebug->getValue(0));
+        }
+        rCourseDebug->run(guard);
+        if (rCourseDebug->isActive()){
+            logger << fmt::format("DEBUG frame={}\n", frame);
+            logger << fmt::format("DEBUG | prev rCourse={:02x}\n", *rCourseDebug->getValue(1));
+            logger << fmt::format("DEBUG | curr rCourse={:02x}\n", *rCourseDebug->getValue(0));
+        }
+        rIsGolfRoundDebug->run(guard);
+        if (rIsGolfRoundDebug->isActive()){
+            logger << fmt::format("DEBUG frame={}\n", frame);
+            logger << fmt::format("DEBUG | prev rIsGolfRound={:02x}\n", *rIsGolfRoundDebug->getValue(1));
+            logger << fmt::format("DEBUG | curr rIsGolfRound={:02x}\n", *rIsGolfRoundDebug->getValue(0));
+        }
+
+        rWoodsDebug->run(guard);
+        if ((*rWoodsDebug)[0].isActive() || (*rWoodsDebug)[1].isActive() || (*rWoodsDebug)[2].isActive() || (*rWoodsDebug)[3].isActive()){
+            logger << fmt::format("DEBUG frame={}\n", frame);
+            logger << fmt::format("DEBUG prev Woods={:02x} | {:02x} | {:02x} | {:02x}\n", *(*rWoodsDebug)[0].getValue(1), *(*rWoodsDebug)[1].getValue(1), *(*rWoodsDebug)[2].getValue(1), *(*rWoodsDebug)[3].getValue(1));
+            logger << fmt::format("DEBUG curr Woods={:02x} | {:02x} | {:02x} | {:02x}\n", *(*rWoodsDebug)[0].getValue(0), *(*rWoodsDebug)[1].getValue(0), *(*rWoodsDebug)[2].getValue(0), *(*rWoodsDebug)[3].getValue(0));
         }
     }
 
@@ -310,20 +366,20 @@ private:
     std::unique_ptr<MemoryTracker<u8, 2, decltype(bool_hi_criteria_0), decltype(bool_hi_criteria_1)>> rIsGolfRound;
     std::unique_ptr<MemoryTracker<u32, 1>> rPlayerPorts; //Array of bytes
     std::unique_ptr<MemoryTracker<u8, 1>> rPlayerTurn;
-    std::unique_ptr<MemoryTracker<u8, 16, decltype(game_mode_criteria_0)>> rGameMode;
-    std::unique_ptr<MemoryTracker<u8, 16, decltype(return_to_menu_1), decltype(return_to_menu_0)>> rMenuScene;
-    std::unique_ptr<MemoryTracker<u8, 16>> rCourseId;
-    std::unique_ptr<MemoryTracker<u8, 16, decltype(round_format_criteria_0), decltype(round_format_criteria_1)>> rRoundFormat;
-    std::unique_ptr<MemoryTracker<u8, 16>> rGreenType;
-    std::unique_ptr<MemoryTracker<u8, 16>> rTees;
-    std::unique_ptr<MemoryTracker<u8, 2, decltype(bool_hi_criteria_0), decltype(bool_hi_criteria_1)>> rPlayerCount;
-    std::unique_ptr<MemoryTrackerArray<u32, 16, 4>> rStarredAtMenu;
-    std::unique_ptr<MemoryTrackerArray<u32, 16, 4>> rHandicapsEnabled;
-    std::unique_ptr<MemoryTrackerArray<u32, 16, 4>> rSimulationLine;
-    std::unique_ptr<MemoryTrackerArray<u32, 16, 4>> rMulligans;
-    std::unique_ptr<MemoryTrackerArray<u32, 16, 4>> rHandicapTees;
-    std::unique_ptr<MemoryTrackerArray<u32, 16, 4>> rCharId;
-    std::unique_ptr<MemoryTrackerArray<u32, 16, 4>> rHandedness;
+    std::unique_ptr<MemoryTracker<u8, 25, decltype(game_mode_criteria_0)>> rGameMode;
+    std::unique_ptr<MemoryTracker<u8, 25, decltype(return_to_menu_1), decltype(return_to_menu_0)>> rMenuScene;
+    std::unique_ptr<MemoryTracker<u8, 25>> rCourseId;
+    std::unique_ptr<MemoryTracker<u8, 25, decltype(round_format_criteria_0), decltype(round_format_criteria_1)>> rRoundFormat;
+    std::unique_ptr<MemoryTracker<u8, 25>> rGreenType;
+    std::unique_ptr<MemoryTracker<u8, 25>> rTees;
+    std::unique_ptr<MemoryTracker<u8, 9, decltype(player_count_criteria_0), decltype(player_count_criteria_6), decltype(player_count_criteria_7)>> rPlayerCount;
+    std::unique_ptr<MemoryTrackerArray<u32, 25, 4>> rStarredAtMenu;
+    std::unique_ptr<MemoryTrackerArray<u32, 25, 4>> rHandicapsEnabled;
+    std::unique_ptr<MemoryTrackerArray<u32, 25, 4>> rSimulationLine;
+    std::unique_ptr<MemoryTrackerArray<u32, 25, 4>> rMulligans;
+    std::unique_ptr<MemoryTrackerArray<u32, 25, 4>> rHandicapTees;
+    std::unique_ptr<MemoryTrackerArray<u32, 25, 4>> rCharId;
+    std::unique_ptr<MemoryTrackerArray<u32, 25, 4>> rHandedness;
     // std::unique_ptr<MemoryTrackerArray<u8, 1, 4>> rHandedness;
     // std::unique_ptr<MemoryTrackerArray<u8, 1, 4>> rCharId;
     std::unique_ptr<MemoryTrackerArray<u8, 1, 4>> rWoods;
@@ -377,7 +433,14 @@ private:
 
     // Debug MemoryTrackers
     std::unique_ptr<MemoryTracker<u8, 2, decltype(sp_debug_criteria_0)>>           rShotPhaseDebug;
-    std::unique_ptr<MemoryTrackerArray<u8, 2, 4, decltype(pss_debug_criteria_0)>> rPlayerShotStatusDebug;
+    std::unique_ptr<MemoryTrackerArray<u32, 2, 4, decltype(pss_debug_criteria_0)>> rPlayerShotStatusDebug;
+    std::unique_ptr<MemoryTracker<u8, 8, decltype(debug_criteria)>> rPlayerCountDebug;
+
+    std::unique_ptr<MemoryTracker<u8, 2, decltype(debug_criteria)>> rGameModeDebug;
+    std::unique_ptr<MemoryTracker<u8, 2, decltype(debug_criteria)>> rRoundFormatDebug;
+    std::unique_ptr<MemoryTracker<u8, 2, decltype(debug_criteria)>> rCourseDebug;
+    std::unique_ptr<MemoryTracker<u8, 2, decltype(debug_criteria)>> rIsGolfRoundDebug;
+    std::unique_ptr<MemoryTrackerArray<u8, 2, 4, decltype(debug_criteria)>> rWoodsDebug;
 
     const std::vector<uint32_t> sizes = {NUM_PLAYERS, NUM_HOLES};
     const std::vector<uint32_t> offsets = {PLAYER_OFFSET, HOLE_OFFSET};
@@ -485,6 +548,7 @@ private:
     }
 
     void menuState(const Core::CPUThreadGuard& guard) {
+        debugMemoryTrackers(guard);
         if (!rPlayerCount->isActive()) {
             rGameMode->run(guard);
             rCourseId->run(guard);
@@ -511,6 +575,7 @@ private:
                 if (!gameID){
                     logger << "ERROR: gameID not set\n";
                 }
+                logger << fmt::format("ROUND_INFO | frame={}", frame);
                 initWriter(std::to_string(*gameID));
 
                 //Read start time
@@ -519,28 +584,19 @@ private:
 
 
                 std::string tagSet = rioInfo.tag_set_id_name.has_value() ? (*rioInfo.tag_set_id_name).second : "null";
-                logger << fmt::format("ROUND_INFO | GameID={:x}, GameMode={}, TagSet={}, CourseID={}, RoundFormat={}, PlayerCount={}\n", *gameID, *rGameMode->getValue(14), tagSet, 
-                                      *rCourseId->getValue(14), *rRoundFormat->getValue(14), *rPlayerCount->getValue());
+                logger << fmt::format("ROUND_INFO | GameID={:x}, GameMode={}, TagSet={}, CourseID={}, RoundFormat={}, PlayerCount={}\n", *gameID, *rGameMode->getValue(0), tagSet, 
+                                      *rCourseId->getValue(20), *rRoundFormat->getValue(20), *rPlayerCount->getValue());
+                logger << fmt::format("ROUND_INFO | Netplay={}, IsHost={}\n", rioInfo.netplay, rioInfo.is_netplay_host);
 
-                // logger << "RoundInfo | GameID=" <<  std::to_string(gameID) << "\n";
-                // logger << "RoundInfo | Start time=" <<  std::asctime(std::localtime(&unix_time)) << "\n";
-                // logger << "RoundInfo | TagSetID=" << (rioInfo.tag_set_id_name.has_value() ? std::to_string((*rioInfo.tag_set_id_name).first) : "null") << "\n";
-                // logger << "RoundInfo | TagSet=" << (rioInfo.tag_set_id_name.has_value() ? (*rioInfo.tag_set_id_name).second : "null") << "\n";
-                // logger << "RoundInfo | GameMode=" <<  std::to_string(*rGameMode->getValue(14)) << "\n";
-                // logger << "RoundInfo | CourseID=" <<  std::to_string(*rCourseId->getValue(14)) << "\n";
-                // logger << "RoundInfo | RoundFormat=" << std::to_string(*rRoundFormat->getValue(14)) << "\n";
-                // logger << "RoundInfo | GreenType=" << std::to_string(*rGreenType->getValue(14)) << "\n";
-                // logger << "RoundInfo | Tees=" << std::to_string(*rTees->getValue(14)) << "\n";
-                // logger << "RoundInfo | PlayerCount=" << std::to_string(*rPlayerCount->getValue()) << "\n";
                 (*writer)["GameID"] = fmt::format("{:x}", *gameID);
                 (*writer)["StartTime"] = std::asctime(std::localtime(&unix_time));
                 (*writer)["TagSetID"] = rioInfo.tag_set_id_name.has_value() ? std::to_string((*rioInfo.tag_set_id_name).first) : "null";
                 (*writer)["TagSet"] = rioInfo.tag_set_id_name.has_value() ? (*rioInfo.tag_set_id_name).second : "null";
-                (*writer)["GameMode"] = *rGameMode->getValue(14);
-                (*writer)["CourseID"] = *rCourseId->getValue(14);
-                (*writer)["RoundFormat"] = *rRoundFormat->getValue(14);
-                (*writer)["GreenType"] = *rGreenType->getValue(14);
-                (*writer)["Tees"] = *rTees->getValue(14);
+                (*writer)["GameMode"] = *rGameMode->getValue();
+                (*writer)["CourseID"] = *rCourseId->getValue(20);
+                (*writer)["RoundFormat"] = *rRoundFormat->getValue(20);
+                (*writer)["GreenType"] = *rGreenType->getValue(20);
+                (*writer)["Tees"] = *rTees->getValue(20);
                 (*writer)["PlayerCount"] = *rPlayerCount->getValue();
 
                 // Get User info
@@ -554,21 +610,28 @@ private:
                     json golfer;
 
                     //Get Rio Name
-                    logger << fmt::format("PLAYER_INFO | Player={}, Port={}, Username={}\n", std::to_string(i), std::to_string(*player_port), rioInfo.rioUsers[i].GetUsername());
-                    
+                    logger << fmt::format("\nPLAYER_INFO | Player={}, Port={}, Username={}\n", std::to_string(i), std::to_string(*player_port), rioInfo.rioUsers[i].GetUsername());
+                    logger << fmt::format("PLAYER_INFO | Player={}, CharId={}, Starred={}, Handedness={}, Handicaps={}\n", 
+                                          std::to_string(i), (*(*rCharId)[i].getValue(20)), (*(*rStarredAtMenu)[i].getValue(20)),
+                                          (*(*rHandedness)[i].getValue(20)), (*(*rHandicapsEnabled)[i].getValue(20)));
+                    logger << fmt::format("PLAYER_INFO | Player={}, Handicaps: Simline={}, Muligans={}, Tees={}\n", 
+                                          std::to_string(i), (*(*rSimulationLine)[i].getValue(20)), (*(*rMulligans)[i].getValue(20)), (*(*rHandicapTees)[i].getValue(20)));
+                    logger << fmt::format("PLAYER_INFO | Player={}, Clubs: Woods={}, Irons={}, Wedges={}\n", 
+                                          std::to_string(i), (*(*rWoods)[i].getValue(0)), (*(*rIrons)[i].getValue(0)), (*(*rWedges)[i].getValue(0)));
+
                     golfer["Port"] = *player_port;
                     golfer["RioUsername"] = rioInfo.rioUsers[i].GetUsername();
 
-                    golfer["HandicapsEnabled"] = (*(*rHandicapsEnabled)[i].getValue(14));
-                    golfer["SimulationLine"] = (*(*rSimulationLine)[i].getValue(14));
-                    golfer["Mulligans"] = (*(*rMulligans)[i].getValue(14));
-                    golfer["HandicapTees"] = (*(*rHandicapTees)[i].getValue(14));
-                    golfer["CharId"] = (*(*rCharId)[i].getValue(14));
-                    golfer["Starred"] = (*(*rStarredAtMenu)[i].getValue(14));
-                    golfer["Handedness"] = (*(*rHandedness)[i].getValue(14));
-                    golfer["Woods"] = (*(*rWoods)[i].getValue());
-                    golfer["Irons"] = (*(*rIrons)[i].getValue());
-                    golfer["Wedges"] = (*(*rWedges)[i].getValue());
+                    golfer["HandicapsEnabled"] = (*(*rHandicapsEnabled)[i].getValue(20));
+                    golfer["SimulationLine"] = (*(*rSimulationLine)[i].getValue(20));
+                    golfer["Mulligans"] = (*(*rMulligans)[i].getValue(20));
+                    golfer["HandicapTees"] = (*(*rHandicapTees)[i].getValue(20));
+                    golfer["CharId"] = (*(*rCharId)[i].getValue(20));
+                    golfer["Starred"] = (*(*rStarredAtMenu)[i].getValue(20));
+                    golfer["Handedness"] = (*(*rHandedness)[i].getValue(20));
+                    golfer["Woods"] = (*(*rWoods)[i].getValue(0)); //TODO needs timing correction
+                    golfer["Irons"] = (*(*rIrons)[i].getValue(0)); //TODO needs timing correction
+                    golfer["Wedges"] = (*(*rWedges)[i].getValue(0)); //TODO needs timing correction
 
                     golfers.emplace_back(golfer);
                 }
@@ -577,9 +640,15 @@ private:
         }
 
         rIsGolfRound->run(guard);
-        if (rIsGolfRound->isActive() && rGameMode->isActive()) {
-            transitionTo(MGTT_State::HOLE_INFO);
+        if (rIsGolfRound->isActive()) {
+            if (rGameMode->isActive()){
+                transitionTo(MGTT_State::HOLE_INFO);
+            }
+            else {
+                transitionTo(MGTT_State::RESET);
+            }
         }
+
     }
 
     void holeInfoState(const Core::CPUThreadGuard& guard) {
@@ -608,7 +677,7 @@ private:
         (*holes)[holeName] = hole;
         transitionTo(MGTT_State::TRANSITION);
 
-        debugShotStatus(guard);
+        debugMemoryTrackers(guard);
     }
 
     void transitionState(const Core::CPUThreadGuard& guard) {
@@ -636,7 +705,7 @@ private:
             transitionTo(MGTT_State::ROUND_OVER);
         }
 
-        debugShotStatus(guard);
+        debugMemoryTrackers(guard);
     }
 
     void swingState(const Core::CPUThreadGuard& guard) {
@@ -768,7 +837,7 @@ private:
             transitionTo(MGTT_State::ROUND_OVER);
         }
 
-        debugShotStatus(guard);
+        debugMemoryTrackers(guard);
     }
 
     void swingOverState(const Core::CPUThreadGuard& guard) {
@@ -791,7 +860,7 @@ private:
             }
         }
 
-        debugShotStatus(guard);
+        debugMemoryTrackers(guard);
     }
     
 
@@ -811,7 +880,7 @@ private:
                 auto strokes_value = rFinalScoreHoleStrokes->at({player, hole}).getValue();
                 auto putts_value = rFinalScoreHolePutts->at({player, hole}).getValue();
 
-                logger << fmt::format("FINAL_SUMMARY | player={}, hole={}, address={:x}, total_value={}\n", playerId, holeId, rFinalScoreHoleTotal->at({player, hole}).getAddress(), total_value ? std::to_string(*total_value) : "null");
+                logger << fmt::format("\nFINAL_SUMMARY | player={}, hole={}, address={:x}, total_value={}\n", playerId, holeId, rFinalScoreHoleTotal->at({player, hole}).getAddress(), total_value ? std::to_string(*total_value) : "null");
                 logger << fmt::format("FINAL_SUMMARY | player={}, hole={}, address={:x}, strokes_value={}\n", playerId, holeId, rFinalScoreHoleStrokes->at({player, hole}).getAddress(), strokes_value ? std::to_string(*strokes_value) : "null");
                 logger << fmt::format("FINAL_SUMMARY | player={}, hole={}, address={:x}, putts_value={}\n", playerId, holeId, rFinalScoreHolePutts->at({player, hole}).getAddress(), putts_value ? std::to_string(*putts_value) : "null");
 
