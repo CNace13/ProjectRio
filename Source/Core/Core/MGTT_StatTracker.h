@@ -131,6 +131,8 @@ static const u32 aShotPhase = 0x804ECD4B;
 constexpr auto sp_swing_start_1 = std::make_pair(1, not_(eq(0xB)));
 constexpr auto sp_swing_start_0 = std::make_pair(0, eq(0xB));
 
+constexpr auto sp_debug_criteria_0 = std::make_pair(0, neq_stage<u8>(1));
+
 static const u32 aPlayerShotStatus_P1 = 0x804ECE98;
 constexpr auto pss_preswing_criteria_1 = std::make_pair(1, eq(4));
 constexpr auto pss_preswing_criteria_0 = std::make_pair(0, eq(4));
@@ -142,6 +144,8 @@ constexpr auto pss_postswing_criteria_1 = std::make_pair(1, not_(eq(8)));
 constexpr auto pss_postswing_criteria_0 = std::make_pair(0, eq(8));
 
 constexpr auto pss_posthole_criteria_0 = std::make_pair(0, or_(gt(8), lt(4)));
+
+constexpr auto pss_debug_criteria_0 = std::make_pair(0, neq_stage<u8>(1));
 
 // Shot
 static const u32 aShotNum_P1 = 0x806CB4FC;
@@ -285,6 +289,18 @@ public:
         }
     }
 
+    void debugShotStatus(const Core::CPUThreadGuard& guard)
+    {
+        rShotPhaseDebug->run(guard);
+        rPlayerShotStatusDebug->run(guard);
+
+        if ((*rPlayerShotStatusDebug)[0].isActive() || (*rPlayerShotStatusDebug)[1].isActive() || (*rPlayerShotStatusDebug)[2].isActive() || (*rPlayerShotStatusDebug)[3].isActive() || rShotPhaseDebug->isActive()){
+            logger << fmt::format("DEBUG frame={}\n", frame);
+            logger << fmt::format("DEBUG prev ShotStatus={:02x} | {:02x} | {:02x} | {:02x} ShotPhase={:02x}\n", *(*rPlayerShotStatusDebug)[0].getValue(1), *(*rPlayerShotStatusDebug)[1].getValue(1), *(*rPlayerShotStatusDebug)[2].getValue(1), *(*rPlayerShotStatusDebug)[3].getValue(1), *rShotPhaseDebug->getValue(1));
+            logger << fmt::format("DEBUG curr ShotStatus={:02x} | {:02x} | {:02x} | {:02x} ShotPhase={:02x}\n", *(*rPlayerShotStatusDebug)[0].getValue(0), *(*rPlayerShotStatusDebug)[1].getValue(0), *(*rPlayerShotStatusDebug)[2].getValue(0), *(*rPlayerShotStatusDebug)[0].getValue(1), *rShotPhaseDebug->getValue(0));
+        }
+    }
+
 private:
     MGTT_State currentState;
     std::unordered_map<MGTT_State, StateFunction> stateFunctions;
@@ -358,6 +374,10 @@ private:
     std::unique_ptr<MemoryTrackerNestedArray<u8, 1>> rFinalScoreHoleTotal;
     std::unique_ptr<MemoryTrackerNestedArray<u8, 1>> rFinalScoreHolePutts;
     std::unique_ptr<MemoryTrackerNestedArray<u8, 1>> rFinalScoreHoleStrokes;
+
+    // Debug MemoryTrackers
+    std::unique_ptr<MemoryTracker<u8, 2, decltype(sp_debug_criteria_0)>>           rShotPhaseDebug;
+    std::unique_ptr<MemoryTrackerArray<u8, 2, 4, decltype(pss_debug_criteria_0)>> rPlayerShotStatusDebug;
 
     const std::vector<uint32_t> sizes = {NUM_PLAYERS, NUM_HOLES};
     const std::vector<uint32_t> offsets = {PLAYER_OFFSET, HOLE_OFFSET};
@@ -535,17 +555,6 @@ private:
 
                     //Get Rio Name
                     logger << fmt::format("PLAYER_INFO | Player={}, Port={}, Username={}\n", std::to_string(i), std::to_string(*player_port), rioInfo.rioUsers[i].GetUsername());
-
-                    // logger << "RoundInfo | HandicapsEnabled=" << std::to_string(*(*rHandicapsEnabled)[i].getValue(14)) << "\n";
-                    // logger << "RoundInfo | SimulationLine=" << std::to_string(*(*rSimulationLine)[i].getValue(14)) << "\n";
-                    // logger << "RoundInfo | Mulligans=" << std::to_string(*(*rMulligans)[i].getValue(14)) << "\n";
-                    // logger << "RoundInfo | HandicapTees=" << std::to_string(*(*rHandicapTees)[i].getValue(14)) << "\n";
-                    // logger << "RoundInfo | CharId=" << std::to_string(*(*rCharId)[i].getValue(14)) << "\n";
-                    // logger << "RoundInfo | Starred=" << std::to_string(*(*rStarredAtMenu)[i].getValue(14)) << "\n";
-                    // logger << "RoundInfo | Handedness=" << std::to_string(*(*rHandedness)[i].getValue(14)) << "\n";
-                    // logger << "RoundInfo | Woods=" << std::to_string(*(*rWoods)[i].getValue()) << "\n";
-                    // logger << "RoundInfo | Irons=" << std::to_string(*(*rIrons)[i].getValue()) << "\n";
-                    // logger << "RoundInfo | Wedges=" << std::to_string(*(*rWedges)[i].getValue()) << "\n";
                     
                     golfer["Port"] = *player_port;
                     golfer["RioUsername"] = rioInfo.rioUsers[i].GetUsername();
@@ -598,6 +607,8 @@ private:
 
         (*holes)[holeName] = hole;
         transitionTo(MGTT_State::TRANSITION);
+
+        debugShotStatus(guard);
     }
 
     void transitionState(const Core::CPUThreadGuard& guard) {
@@ -624,6 +635,8 @@ private:
         if (rMenuScene->isActive()) {
             transitionTo(MGTT_State::ROUND_OVER);
         }
+
+        debugShotStatus(guard);
     }
 
     void swingState(const Core::CPUThreadGuard& guard) {
@@ -754,6 +767,8 @@ private:
         if (rMenuScene->isActive()) {
             transitionTo(MGTT_State::ROUND_OVER);
         }
+
+        debugShotStatus(guard);
     }
 
     void swingOverState(const Core::CPUThreadGuard& guard) {
@@ -768,13 +783,15 @@ private:
                 auto player_shot_num = (*rPlayerShotNum)[*player_turn].getValue();
                 std::string shotName = getShotName(*player_turn, *player_shot_num);
                 std::string holeName = getHoleName(*rHoleNum->getValue(), *rHoleIndex->getValue());
-                logger << fmt::format("SWING_OVER | Player={}, HoleName={}, ShotStatus={}\n", *player_turn, holeName, *(*rPlayerShotStatus_posthole)[*player_turn].getValue());
+                logger << fmt::format("SWING_OVER | Player={}, HoleName={}, ShotName={}, ShotStatus={}\n", *player_turn, holeName, shotName, *(*rPlayerShotStatus_posthole)[*player_turn].getValue());
                 rFinalScoreHoleTotal->run(guard);
                 rFinalScoreHolePutts->run(guard);
                 rFinalScoreHoleStrokes->run(guard);
                 transitionTo(MGTT_State::TRANSITION);
             }
         }
+
+        debugShotStatus(guard);
     }
     
 

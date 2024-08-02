@@ -4,7 +4,10 @@
 void MGTT_StatTracker::readLocalPlayers(int num_players){ //TODO - Assumes all human players, each with own port
     if (rioInfo.netplay){
         rioInfo.rioUsers = NetPlay::NetPlayClient::getNetplayerUserInfo();
-      return;
+        for (std::map<int, LocalPlayers::LocalPlayers::Player>::iterator it = rioInfo.rioUsers.begin(); it != rioInfo.rioUsers.end(); ++it) {
+            logger << fmt::format("readLocalPlayers rioInfo.rioUsers[{}], username={}\n", it->first, it->second.GetUsername());
+        }
+        return;
     }
     
     for (int i=0; i<num_players; ++i){
@@ -105,6 +108,9 @@ void MGTT_StatTracker::resetMemoryTrackers(){
     rFinalScoreHolePutts.reset();
     rFinalScoreHoleStrokes.reset();
 
+    rShotPhaseDebug.reset();
+    rPlayerShotStatusDebug.reset();
+
     initMemoryTrackers();
 }
 
@@ -174,4 +180,8 @@ void MGTT_StatTracker::initMemoryTrackers(){
     rFinalScoreHoleTotal = std::make_unique<MemoryTrackerNestedArray<u8, 1>>(aFinalScoreHoleTotal, sizes, offsets);
     rFinalScoreHolePutts = std::make_unique<MemoryTrackerNestedArray<u8, 1>>(aFinalScoreHolePutts, sizes, offsets);
     rFinalScoreHoleStrokes = std::make_unique<MemoryTrackerNestedArray<u8, 1>>(aFinalScoreHoleStrokes, sizes, offsets);
+
+    // Debug
+    rShotPhaseDebug = std::make_unique<MemoryTracker<u8, 2, decltype(sp_debug_criteria_0)>>(aShotPhase, sp_debug_criteria_0);
+    rPlayerShotStatusDebug = std::make_unique<MemoryTrackerArray<u8, 2, 4, decltype(pss_debug_criteria_0)>>(aPlayerShotStatus_P1, 0x5204, pss_debug_criteria_0);
 }
