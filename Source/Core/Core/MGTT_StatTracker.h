@@ -26,7 +26,7 @@
 #include "Core/MemoryTracker.h"
 #include "Core/MemoryTrackerCriteria.h"
 #include "Common/TagSet.h"
-#include "Core/JsonWriter.h"
+#include "Core/RioUtil.h"
 
 #include <iostream>
 #include <functional>
@@ -232,7 +232,7 @@ public:
             logger << "  " << stateToString(currentState) << " -> " << stateToString(newState) << "\n";
             currentState = newState;
         } else {
-            std::cerr << "Invalid MGTT_State transition!" << std::endl;
+            logger << " ERROR: Invalid MGTT_State transition. InvalidState=" << stateToString(newState) << "\n";
         }
     }
 
@@ -256,13 +256,15 @@ public:
         rioInfo.netplay = netplay_session;
     }
 
-    void setIsNetplayHost(bool isNetplayHost){
-        rioInfo.is_netplay_host = isNetplayHost;
+    void setIsNetplayHost(std::optional<bool> isNetplayHost){
+        if (rioInfo.netplay && !isNetplayHost.has_value()){
+            logger << "ERROR: Netplay session but invalid host\n";
+        }
+        rioInfo.is_netplay_host = *isNetplayHost;
     }
 
     void setNetplayerUserInfo(std::map<int, LocalPlayers::LocalPlayers::Player> userInfo){
         rioInfo.rioUsers = userInfo;
-        // rioInfo.netplay = true;
     }
     void setTagSet(std::optional<Tag::TagSet> tag_set) {
         if (tag_set){
@@ -357,6 +359,10 @@ public:
         // }
     }
 
+    void log(std::string msg){
+        logger << msg;
+    }
+
 private:
     MGTT_State currentState;
     std::unordered_map<MGTT_State, StateFunction> stateFunctions;
@@ -446,7 +452,7 @@ private:
     const std::vector<uint32_t> offsets = {PLAYER_OFFSET, HOLE_OFFSET};
 
     // GameID
-    std::optional<uint64_t> gameID;
+    std::optional<uint64_t> gameID = std::nullopt;
 
     // JSON Info
     std::unique_ptr<json> writer;
@@ -456,6 +462,7 @@ private:
 
     // Debug Logger
     RioUtil::Logger logger = RioUtil::Logger("DebugLogger", RioUtil::LogOutput::BOTH, File::GetUserPath(D_MGTTFILES_IDX)+"logfile.txt");
+
 
     void initWriter(std::string filename) {
         std::string outputFilename = fmt::format("{}{}.json", File::GetUserPath(D_MGTTFILES_IDX), filename);

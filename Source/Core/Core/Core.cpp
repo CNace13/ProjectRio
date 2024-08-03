@@ -270,7 +270,9 @@ void RunRioFunctions(const Core::CPUThreadGuard& guard)
       //Only send GameID if netplay and hosting
       if (NetPlay::IsNetPlayRunning() && is_netplay_host.has_value() 
           && *is_netplay_host && s_mgtt_stat_tracker->getGameID()) {
-        NetPlay::NetPlayClient::SendGameID64(*(s_mgtt_stat_tracker->getGameID()));
+        if (frame % 60) { // Only send once per sec TODO find a way to avoid oversending
+          NetPlay::NetPlayClient::SendGameID64(*(s_mgtt_stat_tracker->getGameID()));
+        }
       }
     }
   }
@@ -905,6 +907,7 @@ bool Init(Core::System& system, std::unique_ptr<BootParameters> boot, const Wind
       s_stat_tracker->init();
       //Neplay Info
       s_stat_tracker->setNetplaySession(NetPlay::IsNetPlayRunning(), "");
+      s_mgtt_stat_tracker->setIsNetplayHost(is_netplay_host);
       //TagSet Info
       auto tag_set = GetActiveTagSet(NetPlay::IsNetPlayRunning());
       if (tag_set){

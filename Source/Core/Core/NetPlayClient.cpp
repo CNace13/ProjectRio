@@ -1037,6 +1037,9 @@ void NetPlayClient::OnPing(sf::Packet& packet)
   response_packet << MessageID::Pong;
   response_packet << ping_key;
 
+  
+  Core::SetIsNetplayHost(m_net_settings.is_hosting );
+
   Send(response_packet);
 }
 
