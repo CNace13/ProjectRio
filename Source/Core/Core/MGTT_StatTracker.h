@@ -141,6 +141,9 @@ static const u32 aShotPhase = 0x804ECD4B;
 constexpr auto sp_swing_start_1 = std::make_pair(1, not_(eq(0xB)));
 constexpr auto sp_swing_start_0 = std::make_pair(0, eq(0xB));
 
+constexpr auto sp_init_1 = std::make_pair(1, not_(eq(0x5)));
+constexpr auto sp_init_0 = std::make_pair(0, eq(0x5));
+
 constexpr auto sp_debug_criteria_0 = std::make_pair(0, neq_stage<u8>(1));
 
 static const u32 aPlayerShotStatus_P1 = 0x804ECE98;
@@ -374,6 +377,7 @@ private:
     std::unique_ptr<MemoryTracker<u8, 1>> rPlayerTurn;
     std::unique_ptr<MemoryTracker<u8, 25, decltype(game_mode_criteria_0)>> rGameMode;
     std::unique_ptr<MemoryTracker<u8, 25, decltype(return_to_menu_1), decltype(return_to_menu_0)>> rMenuScene;
+    std::unique_ptr<MemoryTracker<u8, 2, decltype(start_of_round_0), decltype(start_of_round_1)>> rMenuScene_start_round;
     std::unique_ptr<MemoryTracker<u8, 25>> rCourseId;
     std::unique_ptr<MemoryTracker<u8, 25, decltype(round_format_criteria_0), decltype(round_format_criteria_1)>> rRoundFormat;
     std::unique_ptr<MemoryTracker<u8, 25>> rGreenType;
@@ -401,7 +405,8 @@ private:
     std::unique_ptr<MemoryTracker<u32, 1>> rPin2;
     std::unique_ptr<MemoryTrackerArray<u8, 1, 4>> rPowerShotCount;
     std::unique_ptr<MemoryTrackerArray<u8, 2, 4, decltype(bool_hi_criteria_0), decltype(bool_hi_criteria_1)>> rHoleDone;
-    std::unique_ptr<MemoryTracker<u8, 2, decltype(sp_swing_start_0), decltype(sp_swing_start_1)>> rShotPhase;
+    std::unique_ptr<MemoryTracker<u8, 2, decltype(sp_swing_start_0), decltype(sp_swing_start_1)>> rShotPhase_swing;
+    std::unique_ptr<MemoryTracker<u8, 2, decltype(sp_init_0), decltype(sp_init_1)>> rShotPhase_init;
     std::unique_ptr<MemoryTrackerArray<u32, 2, 4, decltype(pss_preswing_criteria_0), decltype(pss_preswing_criteria_1)>> rPlayerShotStatus_preswing;
     std::unique_ptr<MemoryTrackerArray<u32, 2, 4, decltype(pss_swing_criteria_0), decltype(pss_swing_criteria_1)>> rPlayerShotStatus_swing;
     std::unique_ptr<MemoryTrackerArray<u32, 2, 4, decltype(pss_postswing_criteria_0), decltype(pss_postswing_criteria_1)>> rPlayerShotStatus_postswing;
@@ -583,7 +588,7 @@ private:
                     logger << "ERROR: gameID not set\n";
                 }
                 logger << fmt::format("ROUND_INFO | frame={}", frame);
-                initWriter(std::to_string(*gameID));
+                initWriter(fmt::format("{:x}", *gameID));
 
                 //Read start time
                 std::time_t unix_time = std::time(nullptr);
@@ -646,9 +651,18 @@ private:
             }
         }
 
-        rIsGolfRound->run(guard);
-        if (rIsGolfRound->isActive()) {
-            if (rGameMode->isActive()){
+        //Catch the transition to inGame
+        if (!rMenuScene_start_round->isActive()){
+            rMenuScene_start_round->run(guard);
+        }
+
+        rShotPhase_init->run(guard);
+        if (rMenuScene_start_round->isActive() && rShotPhase_init->isActive()) {
+            auto final_menu_scene = *(rMenuScene_start_round->getValue(1));
+
+            //If previous menu screen is 0 then we are in demo/lessons and do not want to record
+            //GameMode must be  StrokePlay, MatchPlay, or Skins
+            if ((final_menu_scene != 0) && rGameMode->isActive()){
                 transitionTo(MGTT_State::HOLE_INFO);
             }
             else {
@@ -695,13 +709,13 @@ private:
         }
 
         // Check for swing
-        rShotPhase->run(guard);
+        rShotPhase_swing->run(guard);
         rPlayerTurn->run(guard);
         auto player_turn = rPlayerTurn->getValue();
         // Check for swing start
         if (player_turn && (*player_turn <= 3)) {
             //Is Golfer ready to swing?
-            if (rShotPhase->isActive()){
+            if (rShotPhase_swing->isActive()){
                 transitionTo(MGTT_State::SWING);
             }
         }

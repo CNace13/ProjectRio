@@ -3,7 +3,18 @@
 
 void MGTT_StatTracker::readLocalPlayers(int num_players){ //TODO - Assumes all human players, each with own port
     if (rioInfo.netplay){
-        rioInfo.rioUsers = NetPlay::NetPlayClient::getNetplayerUserInfo();
+        auto netplayUsers = NetPlay::NetPlayClient::getNetplayerUserInfo();
+        std::map<int, LocalPlayers::LocalPlayers::Player> adjustedUsers;
+
+        // Netplay map is 1-indexed, need to adjust down
+        // Adjust the keys by subtracting one
+        for (const auto& [key, player] : netplayUsers) {
+            adjustedUsers[key - 1] = player;
+        }
+
+        // Assign the adjusted map back to rioInfo.rioUsers
+        rioInfo.rioUsers = std::move(adjustedUsers);
+        
         for (std::map<int, LocalPlayers::LocalPlayers::Player>::iterator it = rioInfo.rioUsers.begin(); it != rioInfo.rioUsers.end(); ++it) {
             logger << fmt::format("readLocalPlayers rioInfo.rioUsers[{}], username={}\n", it->first, it->second.GetUsername());
         }
@@ -29,14 +40,17 @@ void MGTT_StatTracker::readLocalPlayers(int num_players){ //TODO - Assumes all h
             break;
         }
     }
-    logger << fmt::format("readLocalPlayers m_local_player_0, username={}\n", LocalPlayers::m_online_player.GetUsername());
-    logger << fmt::format("readLocalPlayers m_local_player_1, username={}\n", LocalPlayers::m_local_player_1.GetUsername());
-    logger << fmt::format("readLocalPlayers m_local_player_2, username={}\n", LocalPlayers::m_local_player_2.GetUsername());
-    logger << fmt::format("readLocalPlayers m_local_player_3, username={}\n", LocalPlayers::m_local_player_3.GetUsername());
-    logger << fmt::format("readLocalPlayers m_local_player_4, username={}\n", LocalPlayers::m_local_player_4.GetUsername());
+    logger << fmt::format("readLocalPlayers | m_local_player_online, username={}\n", LocalPlayers::m_online_player.GetUsername());
+    logger << fmt::format("readLocalPlayers | m_local_player_1, username={}\n", LocalPlayers::m_local_player_1.GetUsername());
+    logger << fmt::format("readLocalPlayers | m_local_player_2, username={}\n", LocalPlayers::m_local_player_2.GetUsername());
+    logger << fmt::format("readLocalPlayers | m_local_player_3, username={}\n", LocalPlayers::m_local_player_3.GetUsername());
+    logger << fmt::format("readLocalPlayers | m_local_player_4, username={}\n", LocalPlayers::m_local_player_4.GetUsername());
 }
 
 void MGTT_StatTracker::setGameID(uint64_t inGameID){
+    if (!gameID || (*gameID != inGameID)){
+        logger << fmt::format("ROUND_INFO | GameID={} (Netplay={}, IsHost={})\n", inGameID, rioInfo.netplay, rioInfo.is_netplay_host);
+    }
     if (rioInfo.netplay && !rioInfo.is_netplay_host) {
         gameID = inGameID;
     }
@@ -47,6 +61,8 @@ void MGTT_StatTracker::resetMemoryTrackers(){
     rPlayerPorts.reset();
     rPlayerTurn.reset();
     rGameMode.reset();
+    rMenuScene.reset();
+    rMenuScene_start_round.reset();
     rCourseId.reset();
     rRoundFormat.reset();
     rGreenType.reset();
@@ -70,7 +86,8 @@ void MGTT_StatTracker::resetMemoryTrackers(){
     rRainBool.reset();
     rPin.reset();
     rPin2.reset();
-    rShotPhase.reset();
+    rShotPhase_swing.reset();
+    rShotPhase_init.reset();
     rPowerShotCount.reset();
     rHoleDone.reset();
     rPlayerShotStatus_preswing.reset();
@@ -126,6 +143,7 @@ void MGTT_StatTracker::initMemoryTrackers(){
     rPlayerTurn = std::make_unique<MemoryTracker<u8, 1>>(aPlayerTurn);
     rGameMode = std::make_unique<MemoryTracker<u8, 25, decltype(game_mode_criteria_0)>>(aGameMode, game_mode_criteria_0);
     rMenuScene = std::make_unique<MemoryTracker<u8, 25, decltype(return_to_menu_1), decltype(return_to_menu_0)>>(aMenuScene, return_to_menu_1, return_to_menu_0);
+    rMenuScene_start_round = std::make_unique<MemoryTracker<u8, 2, decltype(start_of_round_0), decltype(start_of_round_1)>>(aMenuScene, start_of_round_0, start_of_round_1);
     rCourseId = std::make_unique<MemoryTracker<u8, 25>>(aCourseId);
     rRoundFormat = std::make_unique<MemoryTracker<u8, 25, decltype(round_format_criteria_0), decltype(round_format_criteria_1)>>(aRoundFormat, round_format_criteria_0, round_format_criteria_1);
     rGreenType = std::make_unique<MemoryTracker<u8, 25>>(aGreenType);
@@ -151,7 +169,8 @@ void MGTT_StatTracker::initMemoryTrackers(){
     rPin2 = std::make_unique<MemoryTracker<u32, 1>>(aPin2);
     rPowerShotCount = std::make_unique<MemoryTrackerArray<u8, 1, 4>>(aPowerShotCount_P1, 0x5204);
     rHoleDone = std::make_unique<MemoryTrackerArray<u8, 2, 4, decltype(bool_hi_criteria_0), decltype(bool_hi_criteria_1)>>(aHoleDone_P1, 0x5204, bool_hi_criteria_0, bool_hi_criteria_1);
-    rShotPhase = std::make_unique<MemoryTracker<u8, 2, decltype(sp_swing_start_0), decltype(sp_swing_start_1)>>(aShotPhase, sp_swing_start_0, sp_swing_start_1);
+    rShotPhase_swing = std::make_unique<MemoryTracker<u8, 2, decltype(sp_swing_start_0), decltype(sp_swing_start_1)>>(aShotPhase, sp_swing_start_0, sp_swing_start_1);
+    rShotPhase_init = std::make_unique<MemoryTracker<u8, 2, decltype(sp_init_0), decltype(sp_init_1)>>(aShotPhase, sp_init_0, sp_init_1);
     rPlayerShotStatus_preswing = std::make_unique<MemoryTrackerArray<u32, 2, 4, decltype(pss_preswing_criteria_0), decltype(pss_preswing_criteria_1)>>(aPlayerShotStatus_P1, 0x5204, pss_preswing_criteria_0, pss_preswing_criteria_1);
     rPlayerShotStatus_swing = std::make_unique<MemoryTrackerArray<u32, 2, 4, decltype(pss_swing_criteria_0), decltype(pss_swing_criteria_1)>>(aPlayerShotStatus_P1, 0x5204, pss_swing_criteria_0, pss_swing_criteria_1);
     rPlayerShotStatus_postswing = std::make_unique<MemoryTrackerArray<u32, 2, 4, decltype(pss_postswing_criteria_0), decltype(pss_postswing_criteria_1)>>(aPlayerShotStatus_P1, 0x5204, pss_postswing_criteria_0, pss_postswing_criteria_1);
