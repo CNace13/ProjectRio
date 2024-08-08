@@ -1674,7 +1674,7 @@ void NetPlayClient::OnChecksumMsg(sf::Packet& packet)
 
 void NetPlayClient::OnGameIDMsg(sf::Packet& packet)
 {
-  uint64_t gameID;
+  sf::Uint64 gameID;
   packet >> gameID;
 
   Core::SetGameID(gameID);
@@ -2687,7 +2687,7 @@ void NetPlayClient::SendGameID64(uint64_t gameId)
 {
   sf::Packet packet;
   packet << MessageID::GameID;
-  packet << gameId;
+  packet << static_cast<sf::Uint64>(gameId);
   netplay_client->SendAsync(std::move(packet));
 }
 
