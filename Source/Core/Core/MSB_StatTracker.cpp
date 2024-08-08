@@ -30,137 +30,6 @@ void StatTracker::Run(const Core::CPUThreadGuard& guard)
 
 void StatTracker::lookForTriggerEvents(const Core::CPUThreadGuard& guard)
 {
-    // if (m_game_state != m_game_state_prev) {
-    //     state_logger.writeToFile(c_game_state[m_game_state]);
-    //     m_game_state_prev = m_game_state;
-    // }
-
-    if (m_event_state != m_event_state_prev) {
-        // Write state on every change
-        //state_logger.writeToFile(c_event_state[m_event_state]);
-        if (m_game_info.currentEventVld()){
-            // Add state of current event to event.history for logging purposes
-            m_game_info.getCurrentEvent().history.push_back(m_event_state);
-
-            if (m_event_state == EVENT_STATE::FINAL_RESULT) {
-            // Write state details on play over
-                state_logger.writeToFile(fmt::format(
-                    "Game State: {}\n"
-                    "Event State: {}\n"
-                    "Event Num: {}\n"
-                    "Inning: {}\n"
-                    "Half Inning: {}\n"
-                    "Batter: {}\n"
-                    "Pitcher: {}\n"
-                    "Event History: \n{}\n",
-                    c_game_state[m_game_state],
-                    c_event_state[m_event_state],
-                    m_game_info.getCurrentEvent().event_num,
-                    m_game_info.getCurrentEvent().inning,
-                    m_game_info.getCurrentEvent().half_inning,
-                    (m_game_info.getCurrentEvent().runner_batter) ? cCharIdToCharName.at(m_game_info.getCurrentEvent().runner_batter->char_id) : "None",
-                    (m_game_info.getCurrentEvent().pitch) ? cCharIdToCharName.at(m_game_info.getCurrentEvent().pitch->pitcher_char_id) : "Pitch Not Thrown Yet",
-                    m_game_info.getCurrentEvent().stringifyHistory()
-                ));
-            
-                            
-                if (m_game_info.getCurrentEvent().result_of_atbat != 0) {
-                    u8 half_inning = m_game_info.getCurrentEvent().half_inning;
-
-                    u8 batter_char_id = m_game_info.character_summaries[half_inning][m_game_info.getCurrentEvent().batter_roster_loc].char_id;
-                    u8 pitcher_char_id = m_game_info.character_summaries[!half_inning][m_game_info.getCurrentEvent().pitcher_roster_loc].char_id;
-
-                    std::string batter_name = cCharIdToCharName.at(batter_char_id);
-                    std::string pitcher_name = cCharIdToCharName.at(pitcher_char_id);
-
-                    if (Config::Get(Config::MAIN_ENABLE_DEBUGGING))
-                    {
-                      OSD::AddTypedMessage(
-                          OSD::MessageType::GameStatePreviousPlayResult,
-                          fmt::format("====PREVIOUS EVENT RESULT====\n"
-                                      "Result of At Bat: {}\n"
-                                      "RBI: {}\n"
-                                      "Outs: {}\n"
-                                      "Pitcher: {}\n"
-                                      "Batter: {}\n",
-                                      m_game_info.getCurrentEvent().result_of_atbat,
-                                      m_game_info.getCurrentEvent().rbi,
-                                      m_game_info.getCurrentEvent().outs, pitcher_name,
-                                      batter_name),
-                          10000, OSD::Color::RED);
-
-                      OSD::AddTypedMessage(
-                          OSD::MessageType::GameStatePreviousPlayInfo,
-                          fmt::format(
-                              "====PREVIOUS EVENT SUMMARY====\n"
-                              "Event Num: {}\n"
-                              "Inning: {}\n"
-                              "Half Inning: {}\n"
-                              "Batter: {}\n"
-                              "Pitcher: {}\n"
-                              "Event History: \n{}\n",
-                              m_game_info.getCurrentEvent().event_num,
-                              m_game_info.getCurrentEvent().inning,
-                              m_game_info.getCurrentEvent().half_inning,
-                              (m_game_info.getCurrentEvent().runner_batter) ?
-                                  cCharIdToCharName.at(
-                                      m_game_info.getCurrentEvent().runner_batter->char_id) :
-                                  "None",
-                              (m_game_info.getCurrentEvent().pitch) ?
-                                  cCharIdToCharName.at(
-                                      m_game_info.getCurrentEvent().pitch->pitcher_char_id) :
-                                  "Pitch Not Thrown Yet",
-                              m_game_info.getCurrentEvent().stringifyHistory()),
-                          10000, OSD::Color::BLUE);
-                    }
-                };
-            }
-        }
-        // Update previous event state variable for checking purposes
-        m_event_state_prev = m_event_state;
-    }
-
-    if (m_game_state == GAME_STATE::INGAME) {
-        if (m_game_info.currentEventVld()){
-          if (Config::Get(Config::MAIN_ENABLE_DEBUGGING))
-          {
-            OSD::AddTypedMessage(
-                OSD::MessageType::GameStateInfo,
-                fmt::format(
-                    "====CURRENT EVENT SUMMARY====\n"
-                    "Game State: {}\n"
-                    "Event State: {}\n"
-                    "Event Num: {}\n"
-                    "Inning: {}\n"
-                    "Half Inning: {}\n"
-                    "Batter: {}\n"
-                    "Pitcher: {}\n"
-                    "Event History: \n{}\n",
-                    c_game_state[m_game_state], c_event_state[m_event_state],
-                    m_game_info.getCurrentEvent().event_num, m_game_info.getCurrentEvent().inning,
-                    m_game_info.getCurrentEvent().half_inning,
-                    (m_game_info.getCurrentEvent().runner_batter) ?
-                        cCharIdToCharName.at(m_game_info.getCurrentEvent().runner_batter->char_id) :
-                        "None",
-                    (m_game_info.getCurrentEvent().pitch) ?
-                        cCharIdToCharName.at(m_game_info.getCurrentEvent().pitch->pitcher_char_id) :
-                        "Pitch Not Thrown Yet",
-                    m_game_info.getCurrentEvent().stringifyHistory()),
-                3000, OSD::Color::CYAN);
-          }
-        }
-    } else {
-      if (Config::Get(Config::MAIN_ENABLE_DEBUGGING))
-      {
-        OSD::AddTypedMessage(OSD::MessageType::GameStateInfo, fmt::format(
-            "Game State: {}\n"
-            "Event State: {}\n",
-            c_game_state[m_game_state],
-            c_event_state[m_event_state]            
-        ), 200, OSD::Color::CYAN);
-        }
-    }
-
     //At Bat State Machine
     if (m_game_state == GAME_STATE::INGAME){
         switch(m_event_state){
@@ -168,9 +37,9 @@ void StatTracker::lookForTriggerEvents(const Core::CPUThreadGuard& guard)
                 //Create new event, collect runner data
 
                 //Capture the rising edge of the AtBat Scene
-        if (PowerPC::MMU::HostRead_U8(guard, aGameControlStateCurr) == 0x1 &&
-            PowerPC::MMU::HostRead_U8(guard, aGameControlStatePrev) != 0x1)
-        {
+                if (PowerPC::MMU::HostRead_U8(guard, aGameControlStateCurr) == 0x1 &&
+                    PowerPC::MMU::HostRead_U8(guard, aGameControlStatePrev) != 0x1)
+                {
 
                     m_game_info.events[m_game_info.event_num] = Event();
                     m_game_info.getCurrentEvent().event_num = m_game_info.event_num;
@@ -1278,9 +1147,18 @@ std::string StatTracker::getHUDJSON(std::string in_event_num, Event& in_curr_eve
 
     json_stream << "{\n";
 
+    std::string tag_set_id_str = "\"\"";
+    if (m_game_info.tag_set_id.has_value()){
+        tag_set_id_str = std::to_string(m_game_info.tag_set_id.value());
+    }
+
+    json_stream << "  \"GameID\": \""                << m_game_info.game_id << "\",\n";
+    json_stream << "  \"TagSetID\": "                << tag_set_id_str << ",\n";
+    json_stream << "  \"StadiumID\": "               << decode("Stadium", m_game_info.stadium, inDecode) << ",\n";
     json_stream << "  \"Event Num\": \""             << in_event_num << "\",\n";
     json_stream << "  \"Away Player\": \""           << m_game_info.getAwayTeamPlayer().GetUsername() << "\",\n";
     json_stream << "  \"Home Player\": \""           << m_game_info.getHomeTeamPlayer().GetUsername() << "\",\n";
+    json_stream << "  \"Innings Selected\": "        << std::to_string(m_game_info.innings_selected) << ",\n";
     json_stream << "  \"Inning\": "                  << std::to_string(in_curr_event.inning) << ",\n";
     json_stream << "  \"Half Inning\": "             << std::to_string(in_curr_event.half_inning) << ",\n";
     json_stream << "  \"Away Score\": "              << std::dec << in_curr_event.away_score << ",\n";
@@ -1372,6 +1250,17 @@ std::string StatTracker::getHUDJSON(std::string in_event_num, Event& in_curr_eve
                     if (m_fielder_tracker[team].fielder_map[roster].out_count_by_position[pos] > 0){
                         std::string comma = (m_fielder_tracker[team].outsAtAnyPosition(roster, pos+1)) ? "," : "";
                         json_stream << "            \"" << cPosition.at(pos) << "\": " << std::to_string(m_fielder_tracker[team].fielder_map[roster].out_count_by_position[pos]) << comma << "\n";
+                    }
+                }
+                json_stream << "        }\n";
+            }
+            json_stream << "      \"Pitches Per Position\": [\n";
+            if (m_fielder_tracker[team].pitchesAtAnyPosition(roster, 0)){
+                json_stream << "        {\n";
+                for (int pos = 0; pos < cNumOfPositions; ++pos) {
+                    if (m_fielder_tracker[team].fielder_map[roster].pitch_count_by_position[pos] > 0){
+                        std::string comma = (m_fielder_tracker[team].pitchesAtAnyPosition(roster, pos+1)) ? "," : "";
+                        json_stream << "            \"" << cPosition.at(pos) << "\": " << std::to_string(m_fielder_tracker[team].fielder_map[roster].pitch_count_by_position[pos]) << comma << "\n";
                     }
                 }
                 json_stream << "        }\n";

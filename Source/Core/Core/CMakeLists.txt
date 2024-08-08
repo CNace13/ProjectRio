@@ -452,10 +452,17 @@ add_library(core
   IOS/WFS/WFSSRV.cpp
   IOS/WFS/WFSSRV.h
   TrackerAdr.h
+  Pipeline.h
+  JsonWriter.h
+  MemoryTracker.h
+  RioUtil.cpp
+  RioUtil.h
   LibusbUtils.cpp
   LibusbUtils.h
   MSB_StatTracker.cpp
   MSB_StatTracker.h
+  MGTT_StatTracker.cpp
+  MGTT_StatTracker.h
   LocalPlayers.cpp
   LocalPlayers.h
   LocalPlayersConfig.cpp
@@ -647,6 +654,12 @@ PRIVATE
   LZ4::LZ4
   ZLIB::ZLIB
 )
+
+include(FetchContent)
+
+FetchContent_Declare(json URL https://github.com/nlohmann/json/releases/download/v3.11.3/json.tar.xz)
+FetchContent_MakeAvailable(json)
+target_link_libraries(core PUBLIC nlohmann_json::nlohmann_json)
 
 if ((DEFINED CMAKE_ANDROID_ARCH_ABI AND CMAKE_ANDROID_ARCH_ABI MATCHES "x86|x86_64") OR
     (NOT DEFINED CMAKE_ANDROID_ARCH_ABI AND _M_X86_64))

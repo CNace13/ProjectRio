@@ -1007,6 +1007,8 @@ void NetPlayClient::OnStartGame(sf::Packet& packet)
       packet >> m_net_settings.sram[i];
 
     m_net_settings.is_hosting = m_local_player->IsHost();
+
+    Core::SetIsNetplayHost(m_local_player->IsHost());
   }
 
   m_dialog->OnMsgStartGame();
@@ -1034,6 +1036,9 @@ void NetPlayClient::OnPing(sf::Packet& packet)
   sf::Packet response_packet;
   response_packet << MessageID::Pong;
   response_packet << ping_key;
+
+  
+  Core::SetIsNetplayHost(m_net_settings.is_hosting );
 
   Send(response_packet);
 }
@@ -1669,7 +1674,7 @@ void NetPlayClient::OnChecksumMsg(sf::Packet& packet)
 
 void NetPlayClient::OnGameIDMsg(sf::Packet& packet)
 {
-  u32 gameID;
+  sf::Uint64 gameID;
   packet >> gameID;
 
   Core::SetGameID(gameID);
@@ -2675,6 +2680,14 @@ void NetPlayClient::SendGameID(u32 gameId)
   sf::Packet packet;
   packet << MessageID::GameID;
   packet << gameId;
+  netplay_client->SendAsync(std::move(packet));
+}
+
+void NetPlayClient::SendGameID64(uint64_t gameId)
+{
+  sf::Packet packet;
+  packet << MessageID::GameID;
+  packet << static_cast<sf::Uint64>(gameId);
   netplay_client->SendAsync(std::move(packet));
 }
 
