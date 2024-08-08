@@ -6,6 +6,7 @@
 #include <optional>
 #include <utility>
 #include <cstdio>
+#include <iostream>
 
 #include "Common/HttpRequest.h"
 
@@ -155,12 +156,14 @@ namespace Tag
    static std::optional<json> ParseResponse(const std::vector<u8>& response)
     {
         const std::string response_string(reinterpret_cast<const char*>(response.data()), response.size());
-        try {
+        
+        if (!json::accept(response_string)) {
+            // Unable to parse JSON
+            return std::nullopt;
+        }
+        else {
             json json_obj = json::parse(response_string);
             return json_obj;
-        } catch (json::parse_error& e) {
-            std::cout << "Parse error: " << e.what() << std::endl;
-            return std::nullopt;
         }
     }
 
