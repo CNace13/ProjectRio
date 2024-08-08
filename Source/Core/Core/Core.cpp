@@ -992,7 +992,13 @@ void Stop()  // - Hammertime!
 
     s_stat_tracker->dumpGame(guard);
     std::cout << "Emulation stopped. Dumping game." << std::endl;
-    s_stat_tracker->init();
+    s_stat_tracker.reset();
+  }
+
+  if (mGameBeingPlayed == GameName::ToadstoolTour)
+  {
+    std::cout << "Emulation stopped. Resetting tracker." << std::endl;
+    s_mgtt_stat_tracker.reset();
   }
 }
 
