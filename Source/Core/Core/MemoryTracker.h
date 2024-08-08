@@ -128,6 +128,7 @@ public:
     bool isActive() const {
         return isActiveImpl(std::make_index_sequence<sizeof...(StageCriteria)>{});
     }
+    
 };
 
 // Helper function to create an array of MemoryTrackers
