@@ -159,7 +159,7 @@ void StatTracker::lookForTriggerEvents(const Core::CPUThreadGuard& guard)
                         m_game_info.getCurrentEvent().pitch->potential_db = false;
                     }
                 }
-                //While pitch is in flight, record runner activity 
+                //While pitch is in flight, record runner activity and track curve
                 //Log if runners are stealing
                 if (m_game_info.getCurrentEvent().runner_1) {
                     logRunnerEvents(guard, & m_game_info.getCurrentEvent().runner_1.value());
@@ -170,6 +170,8 @@ void StatTracker::lookForTriggerEvents(const Core::CPUThreadGuard& guard)
                 if (m_game_info.getCurrentEvent().runner_3) {
                     logRunnerEvents(guard, &m_game_info.getCurrentEvent().runner_3.value());
                 }
+
+                logPitchCurve(guard, m_game_info.getCurrentEvent());
 
                 // === Transition ===
 
@@ -631,6 +633,12 @@ void StatTracker::logPitch(const Core::CPUThreadGuard& guard, Event& in_event){
     in_event.pitch->charge_type        = PowerPC::MMU::HostRead_U8(guard, aAB_ChargePitchType);
     in_event.pitch->star_pitch         = ((PowerPC::MMU::HostRead_U8(guard, aAB_StarPitch_NonCaptain) > 0) || (PowerPC::MMU::HostRead_U8(guard, aAB_StarPitch_Captain) > 0));
     in_event.pitch->pitch_speed        = PowerPC::MMU::HostRead_U8(guard, aAB_PitchSpeed);
+    in_event.pitch->charge_up.read_value(guard);
+
+    in_event.pitch->pitch_target_x_pos.read_value(guard);
+    in_event.pitch->pitch_release_x_pos.read_value(guard);
+    in_event.pitch->pitch_release_y_pos.read_value(guard);
+    in_event.pitch->pitch_release_z_pos.read_value(guard);
 
     in_event.pitch->ball_z_strike_vs_ball = PowerPC::MMU::HostRead_U32(guard, aAB_PitchBallPosZStrikezone);
     in_event.pitch->bat_contact_x_pos.read_value(guard);
@@ -666,6 +674,19 @@ void StatTracker::logPitch(const Core::CPUThreadGuard& guard, Event& in_event){
 
     std::cout << "SWING: Swing Type=" << std::to_string(swing_type) << " Star Swing=" << std::to_string(star_swing) 
               << " AnySwing=" << std::to_string(PowerPC::MMU::HostRead_U8(guard, aAB_AnySwing)) << " Final=" << std::to_string(in_event.pitch->type_of_swing) << "\n";
+}
+
+void StatTracker::logPitchCurve(const Core::CPUThreadGuard& guard, Event& in_event){
+    std::cout << "Logging pitch curve\n";
+
+    Pitch* pitch = &in_event.pitch.value();
+
+    PitchCurve curve_info = {
+        PowerPC::MMU::HostRead_U32(guard, aAB_PitchCurveInput)
+        // TODO find a way to get the curve left and right inputs
+    };
+    pitch->pitch_curve.insert(pitch->pitch_curve.end(), curve_info);
+
 }
 
 void StatTracker::logContactResult(const Core::CPUThreadGuard& guard, Contact* in_contact){
@@ -1009,14 +1030,29 @@ std::string StatTracker::getStatJSON(bool inDecode, bool hide_riokey){
             json_stream << "        \"Pitcher Char Id\": "    << decode("Character", pitch->pitcher_char_id, inDecode) << ",\n";
             json_stream << "        \"Pitch Type\": "         << decode("Pitch", pitch->pitch_type, inDecode) << ",\n";
             json_stream << "        \"Charge Type\": "        << decode("ChargePitch", pitch->charge_type, inDecode) << ",\n";
+            json_stream << "        \"" << pitch->charge_up.name << "\": " << floatConverter(pitch->charge_up.get_value()) << ",\n";
             json_stream << "        \"Star Pitch\": "         << std::to_string(pitch->star_pitch) << ",\n";
             json_stream << "        \"Pitch Speed\": "        << std::to_string(pitch->pitch_speed) << ",\n";
+            json_stream << "        \"" << pitch->pitch_target_x_pos.name << "\": " << floatConverter(pitch->pitch_target_x_pos.get_value()) << ",\n";
+            json_stream << "        \"" << pitch->pitch_release_x_pos.name << "\": " << floatConverter(pitch->pitch_release_x_pos.get_value()) << ",\n";
+            json_stream << "        \"" << pitch->pitch_release_y_pos.name << "\": " << floatConverter(pitch->pitch_release_y_pos.get_value()) << ",\n";
+            json_stream << "        \"" << pitch->pitch_release_z_pos.name << "\": " << floatConverter(pitch->pitch_release_z_pos.get_value()) << ",\n";
             json_stream << "        \"Ball Position - Strikezone\": "   << floatConverter(pitch->ball_z_strike_vs_ball) << ",\n";
             json_stream << "        \"In Strikezone\": "      << std::to_string(pitch->ball_in_strikezone) << ",\n";
             json_stream << "        \"" << pitch->bat_contact_x_pos.name << "\": " << floatConverter(pitch->bat_contact_x_pos.get_value()) << ",\n";
             json_stream << "        \"" << pitch->bat_contact_z_pos.name << "\": " << floatConverter(pitch->bat_contact_z_pos.get_value()) << ",\n";
             json_stream << "        \"DB\": "                 << std::to_string(pitch->db) << ",\n";
-            json_stream << "        \"Type of Swing\": "      << decode("Swing", pitch->type_of_swing, inDecode);
+            json_stream << "        \"Type of Swing\": "      << decode("Swing", pitch->type_of_swing, inDecode) << ",\n";
+
+            //=== Pitch Curve ===
+            json_stream << "        \"Curve\": {\n";
+            json_stream << "          \"Curve Velocity\": [\n";
+            for (int frame = 0; frame < pitch->pitch_curve.size(); ++frame){
+                std::string comma = (frame + 1 == pitch->pitch_curve.size()) ? "," : "";
+                json_stream << "            " << floatConverter(pitch->pitch_curve[frame]->curve_velocity) << comma << "\n";
+            }
+            json_stream << "          ],\n"; // TODO add pitch inputs
+            json_stream << "        }";
             
             //=== Contact ===
             if (pitch->contact.has_value() && pitch->contact->type_of_contact.get_value() != 0xFF){
@@ -1342,8 +1378,13 @@ std::string StatTracker::getHUDJSON(std::string in_event_num, Event& in_curr_eve
         json_stream << "      \"Pitcher Char Id\": "    << decode("Character", pitch->pitcher_char_id, inDecode) << ",\n";
         json_stream << "      \"Pitch Type\": "         << decode("Pitch", pitch->pitch_type, inDecode) << ",\n";
         json_stream << "      \"Charge Type\": "        << decode("ChargePitch", pitch->charge_type, inDecode) << ",\n";
+        json_stream << "        \"" << pitch->charge_up.name << "\": " << floatConverter(pitch->charge_up.get_value()) << ",\n";
         json_stream << "      \"Star Pitch\": "         << std::to_string(pitch->star_pitch) << ",\n";
         json_stream << "      \"Pitch Speed\": "        << std::to_string(pitch->pitch_speed) << ",\n";
+        json_stream << "        \"" << pitch->pitch_target_x_pos.name << "\": " << floatConverter(pitch->pitch_target_x_pos.get_value()) << ",\n";
+        json_stream << "        \"" << pitch->pitch_release_x_pos.name << "\": " << floatConverter(pitch->pitch_release_x_pos.get_value()) << ",\n";
+        json_stream << "        \"" << pitch->pitch_release_y_pos.name << "\": " << floatConverter(pitch->pitch_release_y_pos.get_value()) << ",\n";
+        json_stream << "        \"" << pitch->pitch_release_z_pos.name << "\": " << floatConverter(pitch->pitch_release_z_pos.get_value()) << ",\n";
         json_stream << "      \"Ball Position - Strikezone\": "   << floatConverter(pitch->ball_z_strike_vs_ball) << ",\n";
         json_stream << "      \"In Strikezone\": "      << std::to_string(pitch->ball_in_strikezone) << ",\n";
         json_stream << "        \"" << pitch->bat_contact_x_pos.name << "\": " << floatConverter(pitch->bat_contact_x_pos.get_value()) << ",\n";
