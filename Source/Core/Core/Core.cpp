@@ -589,6 +589,9 @@ void TrainingMode(const Core::CPUThreadGuard& guard)
         PowerPC::MMU::HostRead_U32(guard, aActiveShotVerticalAdjustment);
     int ActiveShotHorizontalAdjustment =
         PowerPC::MMU::HostRead_U32(guard, aActiveShotHorizontalAdjustment);
+    int isGolfing = PowerPC::MMU::HostRead_U8(guard, aIsGolfMatch);
+
+    if (isGolfing)
 
     OSD::AddTypedMessage(OSD::MessageType::TrainingModeGolfing,
                          fmt::format("Shot Data                       \n\n"
