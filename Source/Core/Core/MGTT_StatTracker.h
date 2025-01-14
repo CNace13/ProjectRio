@@ -12,6 +12,7 @@
 #include <utility>
 #include <type_traits>
 #include <ctime>
+#include <fmt/format.h>
 #include "Core/HW/Memmap.h"
 
 #include "Common/HttpRequest.h"
@@ -501,7 +502,10 @@ private:
 
     template<typename T>
     std::string getHoleName(T holeNumber, T holeIndex = 0){
-        return fmt::format("H{}_{}", holeNumber, holeIndex);
+        std::string paddedHoleNumber = fmt::format("{:02}", holeNumber);
+        std::string paddedHoleIndex = fmt::format("{:02}", holeIndex);
+
+        return fmt::format("{}_H{}", paddedHoleIndex, paddedHoleNumber);
     }
 
     template<typename T, typename U>
